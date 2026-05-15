@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="KitchenOS portfolio prototype for receipt parsing, pantry tracking, meal planning, and grocery automation."
+    />
+    <title>KitchenOS Portfolio Prototype</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="src/kitchen-model.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary">
+        <a class="brand" href="#command" data-view-link="command" aria-label="KitchenOS command view">
+          <span class="brand-mark" aria-hidden="true">K</span>
+          <span>
+            <strong>KitchenOS</strong>
+            <small>Personal kitchen graph</small>
+          </span>
+        </a>
+
+        <nav class="primary-nav" aria-label="KitchenOS sections">
+          <button class="nav-item is-active" type="button" data-view-link="command">
+            <span data-icon="layout"></span>
+            Command
+          </button>
+          <button class="nav-item" type="button" data-view-link="receipts">
+            <span data-icon="scan"></span>
+            Intake
+          </button>
+          <button class="nav-item" type="button" data-view-link="pantry">
+            <span data-icon="boxes"></span>
+            Pantry
+          </button>
+          <button class="nav-item" type="button" data-view-link="meals">
+            <span data-icon="chef"></span>
+            Meals
+          </button>
+          <button class="nav-item" type="button" data-view-link="grocery">
+            <span data-icon="cart"></span>
+            Grocery
+          </button>
+          <button class="nav-item" type="button" data-view-link="case">
+            <span data-icon="briefcase"></span>
+            Case Study
+          </button>
+        </nav>
+
+        <div class="sidebar-footer" id="sidebar-status"></div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="view-eyebrow">Command center</p>
+            <h1 id="view-title">Kitchen loop operating system</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="icon-button" type="button" data-action="export" title="Export JSON" aria-label="Export JSON">
+              <span data-icon="download"></span>
+            </button>
+            <button class="icon-button" type="button" data-action="reset" title="Reset demo" aria-label="Reset demo">
+              <span data-icon="refresh"></span>
+            </button>
+          </div>
+        </header>
+
+        <section id="view-root" class="view-root" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <noscript>
+      <div class="noscript">KitchenOS needs JavaScript enabled to run the interactive portfolio prototype.</div>
+    </noscript>
+  </body>
+</html>

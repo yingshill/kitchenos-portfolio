@@ -1,0 +1,10 @@
+{
+  "name": "kitchenos-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portfolio prototype for receipt, pantry, meal, and grocery kitchen management.",
+  "scripts": {
+    "check": "node --check src/kitchen-model.js && node --check app.js && node --test",
+    "test": "node --test"
+  }
+}
