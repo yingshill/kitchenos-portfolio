@@ -141,9 +141,9 @@ function deriveState() {
     recommendedMeals: model.recommendedMeals(state),
     selectedReceiptIsImported: model.selectedReceiptIsImported(state),
     selectedRecipeImport:
-      state.recipeImports.find((item) => item.id === state.selectedRecipeImportId) ||
-      state.recipeImports[0] ||
-      null,
+      state.selectedRecipeImportId
+        ? (state.recipeImports.find((item) => item.id === state.selectedRecipeImportId) || null)
+        : null,
   };
 }
 
