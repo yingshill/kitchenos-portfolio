@@ -91,3 +91,103 @@ Architecture, stack, and design decisions logged at the time they were made. App
 **Options considered:** Optimize for engineering handoff (comprehensive, reference-style); optimize for hiring manager (scannable, opinionated, shows thinking); serve both with a longer document.
 **Decision:** Optimize for hiring manager as primary reader. Every section must earn its length — dense, scannable, and opinionated. Edge cases, business rules, and scoring rationale are included because they demonstrate product discipline, not just for completeness.
 **Tradeoffs:** Gained: stronger portfolio signal, faster to read, forces prioritization of what matters. Given up: exhaustive API-level precision. The business rules table and interaction states section partially bridge the gap for an engineering reader.
+
+---
+
+## Server-side URL extraction proxy using Node built-in http
+
+**Date:** 2026-05-16
+**Context:** The browser blocks cross-origin requests to recipe and social sites. URL extraction requires fetching external HTML server-side.
+**Options considered:** Express or Fastify; Next.js API routes; Node built-in `http` module with manual routing; Bun server.
+**Decision:** Node built-in `http.createServer` with hand-rolled routing. No framework dependency, no `npm install`, starts with `node server.js`.
+**Tradeoffs:** Gained: zero dependencies, zero supply chain surface, consistent with the dependency-free constraint, trivial to audit. Given up: middleware ecosystem, body parsing utilities, structured routing. For three endpoints (recipe-import, recipe-correction, cover-generation) the trade is easily justified; the production version would adopt a real framework.
+
+---
+
+## Rednote multi-retry with shell detection
+
+**Date:** 2026-05-16
+**Context:** Rednote intermittently returns a generic shell page (`小红书`) with no post content. Saving that as a recipe creates poisoned local state.
+**Options considered:** Single fetch and accept whatever returns; retry silently; retry with exponential backoff and reject on persistent shell; require user to paste text manually.
+**Decision:** Up to 5 retries with 250 ms × attempt backoff. If all attempts return a shell, throw `ExtractionError` with code `REDNOTE_SHELL_ONLY` (HTTP 502). The client surfaces an actionable message instead of importing bad data.
+**Tradeoffs:** Gained: no poisoned imports, explicit error state, user gets a clear prompt to paste text as fallback. Given up: faster single-attempt path. The 5-retry ceiling and backoff are tunable via server config; they reflect observed Rednote behavior during the 2026-05-16 audit.
+
+---
+
+## Speech-to-text as an opt-in adapter boundary
+
+**Date:** 2026-05-16
+**Context:** Rednote video posts expose a public MP4 stream but do not expose cooking steps as text. Extracting procedure requires audio transcription.
+**Options considered:** Skip transcription entirely (leave steps empty); always transcribe on import; transcribe only when the extraction status is `needs-review` and a media URL was detected.
+**Decision:** `src/transcript-extractor.js` is called only when the recipe status is `needs-review` and a `mediaUrl` was returned. If `OPENAI_API_KEY` is absent, returns an explicit `not-configured` payload — the UI surfaces a setup prompt, not a blank state.
+**Tradeoffs:** Gained: no API calls when unnecessary, explicit opt-in with clear user messaging, testable boundary with mock fetch. Given up: always-on transcription for all imports. Gating on `needs-review` means a recipe with a schema but no audio never incurs the transcription cost.
+
+---
+
+## AI recipe structuring after transcript via OpenAI Responses API
+
+**Date:** 2026-05-16
+**Context:** Raw speech-to-text output from a cooking video lacks structured ingredient lists and numbered steps. A second LLM call can turn transcript text into a structured recipe.
+**Options considered:** Parse transcript with the same regex/heuristic pipeline as manual text input; call an LLM with a schema; skip structured output and rely on heuristic parsing.
+**Decision:** `src/recipe-structurer.js` calls the OpenAI Responses API with a strict `json_schema` response format. The schema enforces all required fields — `title`, `ingredients`, `steps`, `time`, `servings`, `confidence`, `warnings`. The fallback is heuristic parsing of the raw transcript text (same path as manual correction).
+**Tradeoffs:** Gained: structured output with schema enforcement, ingredient category classification, confidence scoring, explicit warnings. Given up: latency and API cost of a second call; dependence on OpenAI structured output support. The fallback means the pipeline degrades gracefully when the structuring call is skipped or fails.
+
+---
+
+## AI cover generation via OpenAI image API
+
+**Date:** 2026-05-16
+**Context:** The CSS-generated cover was always a placeholder for a real food image. The production slice adds an opt-in AI image generation step.
+**Options considered:** Scrape og:image from source (copyright risk, inconsistent quality); use a stock photo API; use an AI image generation API with a recipe-based prompt.
+**Decision:** `src/cover-generator.js` calls `POST /v1/images/generations` with a structured prompt built from recipe title, ingredients, and cooking method. Image is stored as a base64 data URL. Without `OPENAI_API_KEY`, returns a `not-configured` payload that includes the prompt — the UI shows what would be generated.
+**Tradeoffs:** Gained: food-accurate imagery, consistent KitchenOS editorial style, no scraping, no copyright risk. Given up: prompt engineering is approximate; model output varies. The prompt includes brand rules (no text, no logos, no hands) to maintain visual consistency across imports.
+
+---
+
+## Batch URL intake with per-job status tracking
+
+**Date:** 2026-05-16
+**Context:** Rednote-heavy use cases involve importing multiple URLs in one session. Serial single-URL submission was slow and gave no visibility into batch progress.
+**Options considered:** Single URL input only; multiple URL input with single status; multiple URL input with per-URL job tracking; server-sent events for live progress.
+**Decision:** Textarea accepts multiple URLs (line-separated or space-separated), parsed with a URL regex. Each URL becomes an `importJob` with `id`, `url`, `status`, and `message`. Jobs run serially (to avoid overwhelming the origin) and render inline as a job list.
+**Tradeoffs:** Gained: batch visibility, clear per-URL failure reporting, no UI rewrite required. Given up: parallel extraction (serial is intentional to respect origin rate limits), server-sent events (adds complexity; polling via re-render is sufficient for a small batch). Queue-backed parallel extraction is the production upgrade path.
+
+---
+
+## Recipe library replaces in-browser URL intake
+
+**Date:** 2026-05-16
+**Context:** The "Intake" view was used for both URL processing and recipe display. Processing recipe URLs in the browser was slow, gave no batch capability, and cluttered the UI with progress states.
+**Options considered:** Keep in-browser intake with better UX; move processing to a background job in the server; move processing to a CLI pipeline entirely.
+**Decision:** URL processing moves to `cli/import.js`. The "Intake" view is renamed "Recipe" and becomes a clean grid library of processed recipes. The CLI writes to `recipes.json`; the server serves it; the UI displays it.
+**Tradeoffs:** Gained: clean UI with no in-progress noise, batch import via queue.yaml, human notes as AI hints in the CLI. Given up: one-click browser import. The Re-extract action in the recipe panel provides a server-side fallback for one-off corrections.
+
+---
+
+## File-backed recipe library and takeout store
+
+**Date:** 2026-05-16
+**Context:** The recipe library and takeout favorites need to persist on disk so the CLI pipeline can write to them and the UI can read from them without going through localStorage only.
+**Options considered:** Keep in localStorage only; SQLite via better-sqlite3; plain JSON files served by the Node server; a separate backend service.
+**Decision:** `recipes.json` and `takeouts.json` are plain JSON arrays on disk. The server exposes `GET /api/recipes`, `PATCH /api/recipes/:id`, `GET /api/takeouts`, and `PATCH /api/takeouts/:id`. Files are the write target for the CLI and the read source for the UI.
+**Tradeoffs:** Gained: zero new dependencies, CLI and UI share one source of truth, files are easily inspected and version-controlled. Given up: concurrent write safety, query capabilities, relational integrity. Acceptable for a single-user local tool; production would replace with a real database.
+
+---
+
+## CLI import pipeline with queue.yaml
+
+**Date:** 2026-05-16
+**Context:** Processing recipe URLs one at a time in the browser gave no way to batch imports or attach human notes as AI extraction hints.
+**Options considered:** Keep in-browser URL intake; standalone Node script with single URL only; queue file with URL + notes + tags.
+**Decision:** `cli/import.js` accepts a single URL or a `queue.yaml` file. YAML entries carry `url`, `notes` (free-form human context forwarded as LLM hints), and `tags`. Processed recipes are written to `recipes.json`. The queue file is the handoff point between human curation and AI extraction.
+**Tradeoffs:** Gained: batch processing, human note integration, offline-capable pipeline, no UI noise during processing. Given up: real-time browser progress (replaced by terminal status lines). Queue-backed parallel processing is the production upgrade path.
+
+---
+
+## Claude API as default chat provider with OpenAI fallback
+
+**Date:** 2026-05-16
+**Context:** The "Eat" chatbot view needs an LLM provider to generate meal and restaurant recommendations based on pantry, recipe, and takeout context.
+**Options considered:** OpenAI only; Claude API only; provider abstraction with env-based switching.
+**Decision:** `src/chat-provider.js` wraps both APIs behind a single `chat()` function. `CHAT_PROVIDER=claude` (default) routes to the Anthropic Messages API with `claude-opus-4-7`; `CHAT_PROVIDER=openai` routes to OpenAI chat completions. Uses raw `fetch` throughout — consistent with all other API calls in the project, no SDK dependency.
+**Tradeoffs:** Gained: easy A/B testing between providers, prompt caching on the stable system context prefix for Claude, no SDK dependency. Given up: provider-specific features (streaming events, function calling schema differences). The abstraction is a thin one-file shim; if provider differences grow the production version would adopt an SDK per provider.
