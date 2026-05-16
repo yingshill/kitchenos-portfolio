@@ -21,6 +21,16 @@ const icons = {
     '<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"></path><path d="M3 12A9 9 0 0 1 18.5 5.8L21 8"></path><path d="M3 16v5h5"></path><path d="M21 8V3h-5"></path></svg>',
   spark:
     '<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 2 9 14l-7 2 7 2 4 12 4-12 7-2-7-2z"></path></svg>',
+  book:
+    '<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
+  "map-pin":
+    '<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>',
+  send:
+    '<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>',
+  close:
+    '<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m18 6-12 12"></path><path d="m6 6 12 12"></path></svg>',
+  edit:
+    '<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
   plus:
     '<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>',
   minus:
@@ -58,6 +68,18 @@ const viewMeta = {
     eyebrow: "Portfolio case study",
     title: "Production-grade system narrative",
   },
+  recipe: {
+    eyebrow: "Recipe library",
+    title: "Your saved recipes from web, video, and social sources",
+  },
+  takeouts: {
+    eyebrow: "Takeout favorites",
+    title: "Your go-to restaurants and saved orders",
+  },
+  eat: {
+    eyebrow: "Eat decision engine",
+    title: "What should I eat today?",
+  },
 };
 
 const categoryStyles = {
@@ -74,6 +96,7 @@ const model = window.KitchenModel;
 const seedState = model.seedState;
 
 let state = loadState();
+let derived = deriveState();
 
 const root = document.querySelector("#view-root");
 const title = document.querySelector("#view-title");
@@ -81,12 +104,17 @@ const eyebrow = document.querySelector("#view-eyebrow");
 const sidebarStatus = document.querySelector("#sidebar-status");
 
 function loadState() {
+  const defaults = { takeouts: [], chatHistory: [], chatLoading: false, recipeSearch: "", recipeEditId: null };
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return clone(seedState);
-    return { ...clone(seedState), ...JSON.parse(saved) };
+    const base = { ...clone(seedState), ...defaults };
+    if (!saved) return base;
+    const merged = { ...base, ...JSON.parse(saved) };
+    if (merged.view === "receipts") merged.view = "recipe";
+    merged.chatLoading = false;
+    return merged;
   } catch {
-    return clone(seedState);
+    return { ...clone(seedState), ...defaults };
   }
 }
 
@@ -95,7 +123,26 @@ function clone(value) {
 }
 
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    state.lastAction = "Local storage unavailable";
+  }
+}
+
+function deriveState() {
+  return {
+    pantryValue: model.pantryValue(state),
+    lowStockItems: model.lowStockItems(state),
+    riskItems: model.riskItems(state),
+    receiptQueue: model.receiptQueue(state),
+    recommendedMeals: model.recommendedMeals(state),
+    selectedReceiptIsImported: model.selectedReceiptIsImported(state),
+    selectedRecipeImport:
+      state.recipeImports.find((item) => item.id === state.selectedRecipeImportId) ||
+      state.recipeImports[0] ||
+      null,
+  };
 }
 
 function escapeHtml(value) {
@@ -132,35 +179,31 @@ function categoryClass(category) {
 }
 
 function pantryValue() {
-  return model.pantryValue(state);
+  return derived.pantryValue;
 }
 
 function lowStockItems() {
-  return model.lowStockItems(state);
+  return derived.lowStockItems;
 }
 
 function riskItems() {
-  return model.riskItems(state);
+  return derived.riskItems;
 }
 
 function receiptQueue() {
-  return model.receiptQueue(state);
+  return derived.receiptQueue;
 }
 
 function selectedReceiptIsImported() {
-  return model.selectedReceiptIsImported(state);
+  return derived.selectedReceiptIsImported;
 }
 
 function selectedRecipeImport() {
-  return (
-    state.recipeImports.find((item) => item.id === state.selectedRecipeImportId) ||
-    state.recipeImports[0] ||
-    null
-  );
+  return derived.selectedRecipeImport;
 }
 
 function recommendedMeals() {
-  return model.recommendedMeals(state);
+  return derived.recommendedMeals;
 }
 
 function syncGrocery() {
@@ -170,6 +213,7 @@ function syncGrocery() {
 }
 
 function render() {
+  derived = deriveState();
   const meta = viewMeta[state.view] || viewMeta.command;
   title.textContent = meta.title;
   eyebrow.textContent = meta.eyebrow;
@@ -180,22 +224,29 @@ function render() {
 
   const renderers = {
     command: renderCommand,
-    receipts: renderReceipts,
+    receipts: renderRecipe,
+    recipe: renderRecipe,
     pantry: renderPantry,
     meals: renderMeals,
     grocery: renderGrocery,
+    takeouts: renderTakeouts,
+    eat: renderEat,
     case: renderCaseStudy,
   };
   root.innerHTML = (renderers[state.view] || renderCommand)();
-  hydrateIcons(root);
 }
 
 function renderSidebarStatus() {
-  const readiness = Math.round(recommendedMeals().slice(0, 3).reduce((sum, meal) => sum + meal.score, 0) / 3);
+  const topMeals = recommendedMeals().slice(0, 3);
+  const readiness = topMeals.length
+    ? Math.round(topMeals.reduce((sum, meal) => sum + meal.score, 0) / topMeals.length)
+    : 0;
+  const queuedReceipts = receiptQueue();
+  const lowStock = lowStockItems();
   return `
     <strong>${escapeHtml(readiness)}% meal readiness</strong>
-    <span>${escapeHtml(receiptQueue().length)} receipt${receiptQueue().length === 1 ? "" : "s"} in queue</span>
-    <span>${escapeHtml(lowStockItems().length)} low-stock signals</span>
+    <span>${escapeHtml(queuedReceipts.length)} receipt${queuedReceipts.length === 1 ? "" : "s"} in queue</span>
+    <span>${escapeHtml(lowStock.length)} low-stock signals</span>
   `;
 }
 
@@ -242,7 +293,7 @@ function renderCommand() {
           <div class="panel-header">
             <div>
               <h2 id="receipt-ingest-heading">Receipt ingest</h2>
-              <p class="status-note">${escapeHtml(receiptQueue().length)} receipt ready for merge.</p>
+              <p class="status-note">${escapeHtml(receiptQueue().length)} receipt${receiptQueue().length === 1 ? "" : "s"} ready for merge.</p>
             </div>
             <button class="action-button" type="button" data-action="parse-receipt" data-receipt-id="${escapeHtml(state.selectedReceiptId)}" ${selectedReceiptIsImported() ? "disabled" : ""}>
               ${icon("scan")}
@@ -496,11 +547,18 @@ function renderRecipeUrlImport() {
         <div>
           <h2 id="url-import-heading">Recipe URL intake</h2>
           <p class="status-note">${escapeHtml(state.recipeImports.length)} saved source${state.recipeImports.length === 1 ? "" : "s"} with KitchenOS-generated covers.</p>
+          ${
+            state.recipeImports.length || (state.importJobs || []).length
+              ? `<div class="button-row intake-actions">
+                  <button class="secondary-button" type="button" data-action="clear-recipe-imports">Clear imports</button>
+                </div>`
+              : ""
+          }
         </div>
         <form class="url-import-form" data-action="import-recipe-url">
           <label class="field">
-            <span>URL</span>
-            <input name="url" type="url" autocomplete="off" placeholder="https://..." value="${escapeHtml(state.urlDraft || "")}" required />
+            <span>URLs</span>
+            <textarea name="url" rows="3" autocomplete="off" placeholder="Paste one or more Rednote or recipe URLs" required>${escapeHtml(state.urlDraft || "")}</textarea>
           </label>
           <button class="action-button" type="submit">
             ${icon("spark")}
@@ -509,15 +567,72 @@ function renderRecipeUrlImport() {
         </form>
       </div>
       <div class="panel-body">
+        ${renderImportJobs()}
         ${recipeImport ? renderRecipeImportDetail(recipeImport) : '<div class="empty-state">Import a recipe or video URL to extract ingredients and cooking steps.</div>'}
       </div>
     </section>
   `;
 }
 
+function renderImportJobs() {
+  const jobs = state.importJobs || [];
+  if (!jobs.length) return "";
+  const completed = jobs.filter((job) => ["imported", "updated", "duplicate", "needs-review"].includes(job.status)).length;
+  const failed = jobs.filter((job) => job.status === "failed").length;
+  return `
+    <div class="import-queue" aria-label="URL import run status">
+      <div class="import-queue-header">
+        <strong>Import run</strong>
+        <span>${escapeHtml(completed)}/${escapeHtml(jobs.length)} processed${failed ? ` · ${escapeHtml(failed)} failed` : ""}</span>
+      </div>
+      <div class="import-job-list">
+        ${jobs
+          .map(
+            (job) => `
+              <div class="import-job-row">
+                <span class="badge ${escapeHtml(importJobBadge(job.status))}">${escapeHtml(importJobLabel(job.status))}</span>
+                <span class="import-job-url">${escapeHtml(urlHost(job.url))}</span>
+                <span class="import-job-message">${escapeHtml(job.message || "")}</span>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+function importJobBadge(status) {
+  const map = {
+    duplicate: "blue",
+    extracting: "mustard",
+    failed: "tomato",
+    imported: "leaf",
+    pending: "plum",
+    updated: "leaf",
+    "needs-review": "mustard",
+  };
+  return map[status] || "blue";
+}
+
+function importJobLabel(status) {
+  const map = {
+    duplicate: "duplicate",
+    extracting: "extracting",
+    failed: "failed",
+    imported: "imported",
+    pending: "pending",
+    updated: "updated",
+    "needs-review": "needs review",
+  };
+  return map[status] || status || "queued";
+}
+
 function renderRecipeImportDetail(recipeImport) {
   const coverage = model.recipeImportCoverage(state, recipeImport);
   const missingCount = coverage.ingredients.filter((ingredient) => ingredient.missing > 0).length;
+  const extractionNeedsReview = recipeImport.extractionStatus === "needs-review";
+  const timeLabel = recipeImport.time > 0 ? `${recipeImport.time} min` : "time unknown";
   return `
     <div class="recipe-import-layout">
       ${renderGeneratedCover(recipeImport)}
@@ -532,23 +647,36 @@ function renderRecipeImportDetail(recipeImport) {
         <div class="recipe-meta">
           <a class="source-link" href="${escapeHtml(recipeImport.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipeImport.sourceHost)}</a>
           <span class="badge blue">${escapeHtml(recipeImport.sourceType)}</span>
-          <span class="badge mustard">${escapeHtml(recipeImport.time)} min</span>
+          <span class="badge mustard">${escapeHtml(timeLabel)}</span>
           <span class="badge ${missingCount ? "mustard" : "leaf"}">${missingCount ? `${missingCount} grocery gap${missingCount === 1 ? "" : "s"}` : "pantry ready"}</span>
           <span class="badge plum">${escapeHtml(recipeImport.confidence)}% extraction</span>
+          <span class="badge ${extractionNeedsReview ? "mustard" : "leaf"}">${extractionNeedsReview ? "needs review" : "complete"}</span>
         </div>
+        ${renderExtractionWarnings(recipeImport)}
+        ${renderRecipeCorrectionForm(recipeImport)}
         <div class="recipe-import-grid">
-          <div class="need-list">
-            ${coverage.ingredients.map(renderRecipeIngredientRow).join("")}
-          </div>
-          <ol class="step-list">
-            ${recipeImport.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
-          </ol>
+          ${
+            coverage.ingredients.length
+              ? `<div class="need-list">${coverage.ingredients.map(renderRecipeIngredientRow).join("")}</div>`
+              : '<div class="empty-state">No ingredients were extracted from the public source.</div>'
+          }
+          ${
+            recipeImport.steps.length
+              ? `<ol class="step-list">${recipeImport.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>`
+              : '<div class="empty-state">No cooking steps were extracted from the public source.</div>'
+          }
         </div>
         <div class="button-row">
-          <button class="secondary-button" type="button" data-action="sync-recipe-gaps" data-import-id="${escapeHtml(recipeImport.id)}">
+          <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipeImport.id)}">
+            Re-extract
+          </button>
+          <button class="secondary-button" type="button" data-action="generate-cover" data-import-id="${escapeHtml(recipeImport.id)}">
+            Generate AI cover
+          </button>
+          <button class="secondary-button" type="button" data-action="sync-recipe-gaps" data-import-id="${escapeHtml(recipeImport.id)}" ${recipeImport.ingredients.length ? "" : "disabled"}>
             Add missing to grocery
           </button>
-          <button class="secondary-button" type="button" data-action="save-recipe-meal" data-import-id="${escapeHtml(recipeImport.id)}" ${recipeImport.savedAsMeal ? "disabled" : ""}>
+          <button class="secondary-button" type="button" data-action="save-recipe-meal" data-import-id="${escapeHtml(recipeImport.id)}" ${recipeImport.savedAsMeal || !recipeImport.ingredients.length ? "disabled" : ""}>
             ${recipeImport.savedAsMeal ? "Saved as meal" : "Save as meal"}
           </button>
         </div>
@@ -558,22 +686,89 @@ function renderRecipeImportDetail(recipeImport) {
   `;
 }
 
+function renderRecipeCorrectionForm(recipeImport) {
+  return `
+    <form class="review-form" data-action="correct-recipe-import" data-import-id="${escapeHtml(recipeImport.id)}">
+      <label class="field">
+        <span>Title override</span>
+        <input name="title" type="text" autocomplete="off" placeholder="${escapeHtml(recipeImport.title)}" />
+      </label>
+      <label class="field">
+        <span>Review text</span>
+        <textarea name="text" rows="5" placeholder="Paste the caption, ingredient list, or cooking procedure"></textarea>
+      </label>
+      <button class="secondary-button" type="submit">Apply and regenerate</button>
+    </form>
+  `;
+}
+
+function renderExtractionWarnings(recipeImport) {
+  if (!Array.isArray(recipeImport.warnings) || recipeImport.warnings.length === 0) return "";
+  return `
+    <div class="empty-state">
+      ${recipeImport.warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}
+    </div>
+  `;
+}
+
 function renderGeneratedCover(recipeImport) {
   const ingredients = recipeImport.ingredients.slice(0, 4);
+  const plateColors = ingredients.slice(0, 3).map((ingredient) => ingredientColor(ingredient.category));
+  const cover = recipeImport.cover || {};
+  if (cover.imageDataUrl) {
+    const ingredientLabel = ingredients.length
+      ? `AI cover · ${ingredients.map((ingredient) => escapeHtml(ingredient.name)).join(" / ")}`
+      : "AI cover";
+    return `
+      <figure class="generated-cover has-image" aria-label="AI-generated KitchenOS cover for ${escapeHtml(recipeImport.title)}">
+        <img class="cover-image" src="${escapeHtml(cover.imageDataUrl)}" alt="AI-generated cover for ${escapeHtml(recipeImport.title)}" />
+        <figcaption>
+          <strong>${escapeHtml(recipeImport.title)}</strong>
+          <small>${ingredientLabel}</small>
+        </figcaption>
+      </figure>
+    `;
+  }
+  const statusLabels = {
+    error: "Cover error",
+    "not-configured": "AI not configured",
+    "prompt-ready": "Prompt ready",
+  };
+  const statusLabel = statusLabels[cover.status] || "Prompt ready";
+  const theme = cover.theme || "leaf";
   return `
-    <figure class="generated-cover ${escapeHtml(recipeImport.cover.theme)}" aria-label="KitchenOS generated cover for ${escapeHtml(recipeImport.title)}">
-      <span class="cover-mark">KitchenOS</span>
+    <figure class="generated-cover ${escapeHtml(theme)}" aria-label="KitchenOS generated cover for ${escapeHtml(recipeImport.title)}">
+      <span class="cover-mark">${escapeHtml(statusLabel)}</span>
       <span class="cover-plate" aria-hidden="true">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span style="background: ${plateColors[0] || "var(--mustard)"}"></span>
+        <span style="background: ${plateColors[1] || "var(--leaf)"}"></span>
+        <span style="background: ${plateColors[2] || "var(--tomato)"}"></span>
       </span>
       <figcaption>
         <strong>${escapeHtml(recipeImport.title)}</strong>
-        <small>${ingredients.map((ingredient) => escapeHtml(ingredient.name)).join(" / ")}</small>
+        <small>${escapeHtml(cover.message || "Generate an AI cover from the current recipe data.")}</small>
       </figcaption>
     </figure>
   `;
+}
+
+function ingredientColor(category) {
+  const colors = {
+    Dairy: "var(--blue)",
+    Grain: "var(--mustard)",
+    Pantry: "var(--plum)",
+    Produce: "var(--leaf)",
+    Protein: "var(--tomato)",
+  };
+  return colors[category] || "var(--blue)";
+}
+
+function urlHost(value) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return value || "URL";
+  }
 }
 
 function renderRecipeIngredientRow(ingredient) {
@@ -623,6 +818,287 @@ function renderReceiptCard(receipt) {
         Select receipt
       </button>
     </article>
+  `;
+}
+
+function renderRecipe() {
+  const search = state.recipeSearch || "";
+  const selected = selectedRecipeImport();
+  const filtered = state.recipeImports.filter(
+    (item) => !search || item.title.toLowerCase().includes(search.toLowerCase()),
+  );
+  return `
+    <div class="recipe-library${selected ? " has-panel" : ""}">
+      <div class="recipe-library-main">
+        <section class="panel" aria-labelledby="recipe-lib-heading">
+          <div class="panel-header">
+            <div>
+              <h2 id="recipe-lib-heading">Recipe library</h2>
+              <p class="status-note">${escapeHtml(state.recipeImports.length)} saved recipe${state.recipeImports.length === 1 ? "" : "s"} · Import more with <code>node cli/import.js &lt;url&gt;</code></p>
+            </div>
+            <div class="toolbar">
+              <label class="field">
+                <span>Search</span>
+                <input type="search" data-action="search-recipes" value="${escapeHtml(search)}" placeholder="Recipe name" />
+              </label>
+              <button class="action-button" type="button" data-action="sync-recipes">
+                ${icon("refresh")} Sync
+              </button>
+            </div>
+          </div>
+        </section>
+        ${
+          filtered.length
+            ? `<div class="recipe-card-grid">${filtered.map((r) => renderRecipeLibraryCard(r, selected?.id === r.id)).join("")}</div>`
+            : `<div class="empty-state"><p>${search ? "No recipes match your search." : "No recipes in your library yet."}</p>${!search ? `<p>Run <code>node cli/import.js &lt;url&gt;</code> to import your first recipe, or click Sync to load from the server.</p>` : ""}</div>`
+        }
+      </div>
+      ${selected ? renderRecipeDetailPanel(selected) : ""}
+    </div>
+  `;
+}
+
+function renderRecipeLibraryCard(recipe, isSelected) {
+  const coverage = model.recipeImportCoverage(state, recipe);
+  const coveragePercent = Math.round(coverage.coverage * 100);
+  const cover = recipe.cover || {};
+  const theme = cover.theme || "leaf";
+  return `
+    <article class="recipe-card-item${isSelected ? " is-selected" : ""}" data-action="open-recipe" data-import-id="${escapeHtml(recipe.id)}" tabindex="0" role="button" aria-pressed="${isSelected ? "true" : "false"}">
+      <div class="recipe-mini-cover ${escapeHtml(theme)}">
+        ${cover.imageDataUrl ? `<img src="${escapeHtml(cover.imageDataUrl)}" alt="" />` : ""}
+      </div>
+      <div class="recipe-card-info">
+        <strong class="recipe-card-title">${escapeHtml(recipe.title)}</strong>
+        <div class="recipe-meta">
+          <a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceHost)}</a>
+          <span class="badge blue">${escapeHtml(recipe.sourceType)}</span>
+          ${recipe.time > 0 ? `<span class="badge mustard">${escapeHtml(recipe.time)} min</span>` : ""}
+        </div>
+      </div>
+      <span class="score-ring score-ring-sm" aria-label="${escapeHtml(coveragePercent)} percent pantry coverage">${escapeHtml(coveragePercent)}</span>
+    </article>
+  `;
+}
+
+function renderRecipeDetailPanel(recipe) {
+  const isEditing = state.recipeEditId === recipe.id;
+  const coverage = model.recipeImportCoverage(state, recipe);
+  const missingCount = coverage.ingredients.filter((i) => i.missing > 0).length;
+  return `
+    <aside class="recipe-detail-panel" aria-label="Recipe detail">
+      <div class="recipe-panel-header">
+        <strong>Recipe detail</strong>
+        <div class="row-actions">
+          <button class="icon-button" type="button" data-action="toggle-recipe-edit" data-import-id="${escapeHtml(recipe.id)}" title="${isEditing ? "Cancel edit" : "Edit recipe"}" aria-label="${isEditing ? "Cancel edit" : "Edit recipe"}">
+            ${isEditing ? icon("close") : icon("edit")}
+          </button>
+          <button class="icon-button" type="button" data-action="close-recipe-panel" title="Close" aria-label="Close panel">
+            ${icon("close")}
+          </button>
+        </div>
+      </div>
+      <div class="recipe-panel-body">
+        ${renderGeneratedCover(recipe)}
+        ${isEditing ? renderRecipeEditForm(recipe) : renderRecipeReadView(recipe)}
+        <div class="button-row">
+          <button class="secondary-button" type="button" data-action="sync-recipe-gaps" data-import-id="${escapeHtml(recipe.id)}" ${recipe.ingredients.length ? "" : "disabled"}>
+            Add missing to grocery
+          </button>
+          <button class="secondary-button" type="button" data-action="save-recipe-meal" data-import-id="${escapeHtml(recipe.id)}" ${recipe.savedAsMeal || !recipe.ingredients.length ? "disabled" : ""}>
+            ${recipe.savedAsMeal ? "Saved as meal" : "Save as meal"}
+          </button>
+          <button class="secondary-button" type="button" data-action="generate-cover" data-import-id="${escapeHtml(recipe.id)}">
+            Generate AI cover
+          </button>
+          <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipe.id)}">
+            Re-extract
+          </button>
+        </div>
+        ${renderExtractionWarnings(recipe)}
+        ${missingCount > 0 ? `<p class="status-note">${missingCount} ingredient${missingCount === 1 ? "" : "s"} missing from pantry.</p>` : ""}
+      </div>
+    </aside>
+  `;
+}
+
+function renderRecipeReadView(recipe) {
+  const coverage = model.recipeImportCoverage(state, recipe);
+  return `
+    <div class="recipe-read-view">
+      <div class="recipe-top">
+        <div>
+          <h3>${escapeHtml(recipe.title)}</h3>
+          <p>${escapeHtml(recipe.summary || `Imported from ${recipe.sourceHost}.`)}</p>
+        </div>
+        <span class="score-ring" aria-label="${escapeHtml(Math.round(coverage.coverage * 100))} percent pantry coverage">${escapeHtml(Math.round(coverage.coverage * 100))}</span>
+      </div>
+      <div class="recipe-meta">
+        <a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceHost)}</a>
+        <span class="badge blue">${escapeHtml(recipe.sourceType)}</span>
+        ${recipe.time > 0 ? `<span class="badge mustard">${escapeHtml(recipe.time)} min</span>` : ""}
+        <span class="badge ${recipe.extractionStatus === "needs-review" ? "mustard" : "leaf"}">${escapeHtml(recipe.extractionStatus === "needs-review" ? "needs review" : "complete")}</span>
+        <span class="badge plum">${escapeHtml(recipe.confidence)}% confidence</span>
+      </div>
+      ${
+        coverage.ingredients.length
+          ? `<div><p class="eyebrow" style="margin:0 0 8px">Ingredients</p><div class="need-list">${coverage.ingredients.map(renderRecipeIngredientRow).join("")}</div></div>`
+          : ""
+      }
+      ${
+        recipe.steps.length
+          ? `<div><p class="eyebrow" style="margin:0 0 8px">Steps</p><ol class="step-list">${recipe.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol></div>`
+          : ""
+      }
+      ${recipe.notes ? `<div><p class="eyebrow" style="margin:0 0 4px">Notes</p><p class="muted">${escapeHtml(recipe.notes)}</p></div>` : ""}
+    </div>
+  `;
+}
+
+function renderRecipeEditForm(recipe) {
+  return `
+    <form class="recipe-edit-form" data-action="save-recipe-edit" data-import-id="${escapeHtml(recipe.id)}">
+      <label class="field">
+        <span>Title</span>
+        <input name="title" type="text" value="${escapeHtml(recipe.title)}" autocomplete="off" />
+      </label>
+      <div class="split-fields">
+        <label class="field">
+          <span>Time (min)</span>
+          <input name="time" type="number" min="0" value="${escapeHtml(recipe.time)}" />
+        </label>
+        <label class="field">
+          <span>Servings</span>
+          <input name="servings" type="number" min="1" value="${escapeHtml(recipe.servings)}" />
+        </label>
+      </div>
+      <label class="field">
+        <span>Summary</span>
+        <textarea name="summary" rows="2">${escapeHtml(recipe.summary || "")}</textarea>
+      </label>
+      <label class="field">
+        <span>Notes</span>
+        <textarea name="notes" rows="2" placeholder="Personal notes about this recipe">${escapeHtml(recipe.notes || "")}</textarea>
+      </label>
+      <label class="field">
+        <span>Review text (re-extracts ingredients and steps)</span>
+        <textarea name="reviewText" rows="4" placeholder="Paste recipe caption or ingredient list to re-extract"></textarea>
+      </label>
+      <div class="button-row">
+        <button class="action-button" type="submit">${icon("check")} Save</button>
+        <button class="secondary-button" type="button" data-action="toggle-recipe-edit" data-import-id="${escapeHtml(recipe.id)}">Cancel</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderTakeouts() {
+  const takeouts = state.takeouts || [];
+  return `
+    <div class="stack">
+      <section class="panel" aria-labelledby="takeouts-add-heading">
+        <div class="panel-header">
+          <div>
+            <h2 id="takeouts-add-heading">Add restaurant</h2>
+            <p class="status-note">${escapeHtml(takeouts.length)} saved restaurant${takeouts.length === 1 ? "" : "s"} · Track your go-to spots</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <form class="takeout-add-form" data-action="add-takeout">
+            <div class="takeout-form-grid">
+              <label class="field">
+                <span>Name</span>
+                <input name="name" type="text" autocomplete="off" placeholder="Restaurant name" required />
+              </label>
+              <label class="field">
+                <span>Cuisine</span>
+                <input name="cuisine" type="text" autocomplete="off" placeholder="e.g. Thai, Japanese" />
+              </label>
+              <label class="field">
+                <span>Website or maps URL</span>
+                <input name="url" type="url" autocomplete="off" placeholder="https://…" />
+              </label>
+            </div>
+            <label class="field">
+              <span>Notes</span>
+              <textarea name="notes" rows="2" placeholder="What to order, best dishes, tips…"></textarea>
+            </label>
+            <button class="action-button" type="submit">${icon("plus")} Add restaurant</button>
+          </form>
+        </div>
+      </section>
+      ${
+        takeouts.length
+          ? `<div class="takeouts-grid" aria-label="Saved restaurants">${takeouts.map(renderTakeoutCard).join("")}</div>`
+          : `<div class="empty-state">No restaurants saved yet. Add your first one above.</div>`
+      }
+    </div>
+  `;
+}
+
+function renderTakeoutCard(takeout) {
+  return `
+    <article class="takeout-card">
+      <div class="takeout-top">
+        <div>
+          <strong>${escapeHtml(takeout.name)}</strong>
+          ${takeout.cuisine ? `<small>${escapeHtml(takeout.cuisine)}</small>` : ""}
+        </div>
+        <button class="mini-action" type="button" data-action="delete-takeout" data-takeout-id="${escapeHtml(takeout.id)}" title="Remove" aria-label="Remove ${escapeHtml(takeout.name)}">${icon("trash")}</button>
+      </div>
+      ${takeout.notes ? `<p class="muted">${escapeHtml(takeout.notes)}</p>` : ""}
+      <div class="recipe-meta">
+        ${takeout.url ? `<a class="source-link" href="${escapeHtml(takeout.url)}" target="_blank" rel="noreferrer">Visit</a>` : ""}
+        ${(takeout.tags || []).map((tag) => `<span class="badge">${escapeHtml(tag)}</span>`).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderEat() {
+  const history = state.chatHistory || [];
+  return `
+    <div class="eat-view">
+      <section class="chat-panel panel" aria-labelledby="eat-heading">
+        <div class="panel-header">
+          <div>
+            <h2 id="eat-heading">Ask KitchenOS</h2>
+            <p class="status-note">${escapeHtml(state.mood)} mood · ${escapeHtml(state.energy)} energy · ${escapeHtml(state.maxTime)} min · ${escapeHtml(state.pantry.length)} pantry items · ${escapeHtml((state.takeouts || []).length)} restaurants</p>
+          </div>
+          ${history.length ? `<button class="secondary-button" type="button" data-action="clear-chat">Clear</button>` : ""}
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          ${
+            history.length
+              ? history.map(renderChatMessage).join("")
+              : `<div class="chat-welcome">
+                  <p>What should you eat today? I know your pantry, saved recipes, and favorite restaurants.</p>
+                  <div class="chat-suggestions">
+                    <button class="chip-button" type="button" data-action="chat-suggest" data-prompt="What can I cook with what I have in my pantry right now?">What can I cook?</button>
+                    <button class="chip-button" type="button" data-action="chat-suggest" data-prompt="What's the quickest meal I can make?">Quick meal</button>
+                    <button class="chip-button" type="button" data-action="chat-suggest" data-prompt="What should I order for takeout tonight?">Takeout ideas</button>
+                    <button class="chip-button" type="button" data-action="chat-suggest" data-prompt="What pantry items are about to expire and what should I cook with them?">Use before they expire</button>
+                  </div>
+                </div>`
+          }
+          ${state.chatLoading ? `<div class="chat-message is-assistant is-loading"><p><span class="loading-dots"><span></span><span></span><span></span></span></p></div>` : ""}
+        </div>
+        <form class="chat-input-bar" data-action="send-chat">
+          <label class="sr-only" for="chat-input">Message</label>
+          <input id="chat-input" name="message" type="text" autocomplete="off" placeholder="Ask about your pantry, recipes, or where to order…" required />
+          <button class="action-button" type="submit">${icon("send")} Send</button>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function renderChatMessage(message) {
+  const html = escapeHtml(message.content).replace(/\n/g, "<br>");
+  return `
+    <div class="chat-message ${message.role === "user" ? "is-user" : "is-assistant"}${message.isError ? " is-error" : ""}">
+      <p>${html}</p>
+    </div>
   `;
 }
 
@@ -859,6 +1335,299 @@ function exportState() {
   render();
 }
 
+function updateImportJob(jobId, patch) {
+  if (!jobId) return;
+  state.importJobs = (state.importJobs || []).map((job) => (job.id === jobId ? { ...job, ...patch } : job));
+}
+
+async function importRecipeFromUrl(url, options = {}) {
+  updateImportJob(options.jobId, { status: "extracting", message: "Fetching source" });
+  state.urlDraft = url;
+  state.lastAction = "Extracting recipe URL";
+  persist();
+  render();
+
+  try {
+    const response = await fetch("/api/recipe-import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Recipe extraction failed");
+
+    const result = model.importRecipeUrl(state, url, {
+      extraction: payload.recipe,
+      forceRefresh: options.forceRefresh,
+    });
+    if (result.status === "needs-extraction") {
+      state.lastAction = "No recipe data was extracted";
+      updateImportJob(options.jobId, { status: "failed", message: state.lastAction });
+    } else if (
+      (result.status === "imported" || result.status === "updated") &&
+      result.recipeImport.extractionStatus === "needs-review"
+    ) {
+      state.lastAction = `${result.recipeImport.title} needs review`;
+      updateImportJob(options.jobId, {
+        importId: result.recipeImport.id,
+        status: "needs-review",
+        message: state.lastAction,
+      });
+    } else if (result.recipeImport) {
+      updateImportJob(options.jobId, {
+        importId: result.recipeImport.id,
+        status: result.status,
+        message: result.status === "duplicate" ? "Already imported" : `${result.recipeImport.title} ${result.status}`,
+      });
+    }
+  } catch (error) {
+    state.lastAction =
+      window.location.protocol === "file:"
+        ? "Run npm run dev for live URL extraction"
+        : error.message || "Recipe extraction failed";
+    updateImportJob(options.jobId, { status: "failed", message: state.lastAction });
+  }
+
+  persist();
+  render();
+}
+
+async function importRecipesFromText(value) {
+  const urls = importUrlsFromText(value);
+  if (!urls.length) {
+    state.lastAction = "Paste at least one valid URL";
+    persist();
+    render();
+    return;
+  }
+
+  const runId = Date.now();
+  state.importJobs = urls.map((url, index) => ({
+    id: `import-${runId}-${index}`,
+    url,
+    status: "pending",
+    message: "Queued",
+  }));
+  state.lastAction = `Processing ${urls.length} URL${urls.length === 1 ? "" : "s"}`;
+  persist();
+  render();
+
+  for (const job of [...state.importJobs]) {
+    await importRecipeFromUrl(job.url, { jobId: job.id });
+  }
+
+  if (urls.length > 1) {
+    state.lastAction = `${urls.length} URL${urls.length === 1 ? "" : "s"} processed`;
+    persist();
+    render();
+  }
+}
+
+async function reextractRecipeImport(importId) {
+  const recipeImport = state.recipeImports.find((item) => item.id === importId);
+  if (!recipeImport) return;
+  const url = recipeImport.fetchUrl || recipeImport.sourceUrl;
+  const jobId = `reextract-${Date.now()}`;
+  state.importJobs = [
+    {
+      id: jobId,
+      importId,
+      url,
+      status: "pending",
+      message: "Queued re-extract",
+    },
+  ];
+  await importRecipeFromUrl(url, { forceRefresh: true, jobId });
+}
+
+function importUrlsFromText(value) {
+  const matches = String(value || "").match(/https?:\/\/[^\s,]+/gi) || [];
+  const seen = new Set();
+  return matches
+    .map((item) => item.replace(/[)\].,;]+$/g, ""))
+    .filter((item) => {
+      if (seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+}
+
+async function correctRecipeImport(importId, text, title = "") {
+  const recipeImport = state.recipeImports.find((item) => item.id === importId);
+  if (!recipeImport) return;
+
+  state.lastAction = "Applying recipe correction";
+  persist();
+  render();
+
+  try {
+    const response = await fetch("/api/recipe-correction", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        creator: recipeImport.creator,
+        metadataTitle: recipeImport.title,
+        sourceType: recipeImport.sourceType,
+        text,
+        title: title || undefined,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Recipe correction failed");
+
+    const result = model.updateRecipeImport(state, importId, payload.recipe);
+    if (result.status !== "updated") state.lastAction = "Recipe correction failed";
+  } catch (error) {
+    state.lastAction =
+      window.location.protocol === "file:"
+        ? "Run npm run dev for recipe corrections"
+        : error.message || "Recipe correction failed";
+  }
+
+  persist();
+  render();
+}
+
+async function generateCoverForImport(importId) {
+  const recipeImport = state.recipeImports.find((item) => item.id === importId);
+  if (!recipeImport) return;
+
+  state.lastAction = "Generating AI cover";
+  persist();
+  render();
+
+  try {
+    const response = await fetch("/api/cover-generation", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recipe: recipeImport }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "AI cover generation failed");
+    model.updateRecipeCover(state, importId, payload.cover);
+  } catch (error) {
+    const message =
+      window.location.protocol === "file:"
+        ? "Run npm run dev for AI cover generation"
+        : error.message || "AI cover generation failed";
+    model.updateRecipeCover(state, importId, { status: "error", message });
+  }
+
+  persist();
+  render();
+}
+
+async function syncRecipesFromServer() {
+  state.lastAction = "Syncing recipe library";
+  persist();
+  render();
+  try {
+    const response = await fetch("/api/recipes");
+    if (!response.ok) throw new Error("Sync failed");
+    const serverRecipes = await response.json();
+    const existingById = new Map(state.recipeImports.map((r) => [r.id, r]));
+    let added = 0;
+    let updated = 0;
+    for (const serverRecipe of serverRecipes) {
+      if (!serverRecipe.id) continue;
+      if (existingById.has(serverRecipe.id)) {
+        const idx = state.recipeImports.findIndex((r) => r.id === serverRecipe.id);
+        state.recipeImports[idx] = { ...existingById.get(serverRecipe.id), ...serverRecipe };
+        updated++;
+      } else {
+        state.recipeImports.unshift(serverRecipe);
+        added++;
+      }
+    }
+    state.lastAction = `Library synced — ${added} added, ${updated} updated`;
+  } catch {
+    state.lastAction =
+      window.location.protocol === "file:"
+        ? "Run npm run dev to sync recipe library"
+        : "Sync failed — server not available";
+  }
+  persist();
+  render();
+}
+
+async function patchRecipeToServer(importId, recipe) {
+  if (window.location.protocol === "file:") return;
+  try {
+    await fetch(`/api/recipes/${encodeURIComponent(importId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(recipe),
+    });
+  } catch {
+    // silent fail — local state already updated
+  }
+}
+
+function buildChatContext() {
+  return {
+    pantry: state.pantry.slice(0, 12).map((item) => ({
+      name: item.name,
+      servings: item.servings,
+      category: item.category,
+      expiresIn: item.expiresIn,
+    })),
+    meals: recommendedMeals()
+      .slice(0, 5)
+      .map((m) => ({ name: m.name, score: m.score, time: m.time })),
+    recipes: state.recipeImports.slice(0, 5).map((r) => ({
+      title: r.title,
+      time: r.time,
+      sourceType: r.sourceType,
+      summary: r.summary || "",
+    })),
+    takeouts: (state.takeouts || []).map((t) => ({
+      name: t.name,
+      cuisine: t.cuisine || "",
+      notes: t.notes || "",
+    })),
+    prefs: { mood: state.mood, energy: state.energy, maxTime: state.maxTime },
+  };
+}
+
+async function sendChatMessage(content) {
+  state.chatHistory = [...(state.chatHistory || []), { role: "user", content }];
+  state.chatLoading = true;
+  persist();
+  render();
+  const chatEl = document.querySelector("#chat-messages");
+  if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ messages: state.chatHistory, context: buildChatContext() }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.status === "not-configured") {
+      const text =
+        payload.code === "CHAT_NOT_CONFIGURED"
+          ? "Add ANTHROPIC_API_KEY to .env.local to enable AI chat."
+          : payload.error || payload.message || "Chat request failed.";
+      state.chatHistory = [...state.chatHistory, { role: "assistant", content: text, isError: true }];
+    } else {
+      state.chatHistory = [...state.chatHistory, { role: "assistant", content: payload.text }];
+    }
+  } catch (error) {
+    const text =
+      window.location.protocol === "file:"
+        ? "Run npm run dev to enable AI chat."
+        : error.message || "Chat request failed.";
+    state.chatHistory = [...state.chatHistory, { role: "assistant", content: text, isError: true }];
+  }
+
+  state.chatLoading = false;
+  persist();
+  render();
+  const chatElAfter = document.querySelector("#chat-messages");
+  if (chatElAfter) chatElAfter.scrollTop = chatElAfter.scrollHeight;
+}
+
 document.addEventListener("click", (event) => {
   const viewLink = event.target.closest("[data-view-link]");
   if (viewLink) {
@@ -892,10 +1661,27 @@ document.addEventListener("click", (event) => {
     persist();
     render();
   }
+  if (action === "clear-recipe-imports") {
+    state.recipeImports = [];
+    state.selectedRecipeImportId = null;
+    state.importJobs = [];
+    state.lastAction = "Recipe imports cleared";
+    persist();
+    render();
+    return;
+  }
   if (action === "sync-recipe-gaps") {
     model.syncRecipeImportGaps(state, actionTarget.dataset.importId);
     persist();
     render();
+  }
+  if (action === "generate-cover") {
+    generateCoverForImport(actionTarget.dataset.importId);
+    return;
+  }
+  if (action === "reextract-recipe") {
+    reextractRecipeImport(actionTarget.dataset.importId);
+    return;
   }
   if (action === "save-recipe-meal") {
     model.saveRecipeImportAsMeal(state, actionTarget.dataset.importId);
@@ -907,6 +1693,44 @@ document.addEventListener("click", (event) => {
     state.lastAction = `Mood set to ${state.mood}`;
     persist();
     render();
+  }
+  if (action === "open-recipe") {
+    if (event.target.closest("a")) return;
+    state.selectedRecipeImportId = actionTarget.dataset.importId;
+    state.recipeEditId = null;
+    persist();
+    render();
+  }
+  if (action === "close-recipe-panel") {
+    state.selectedRecipeImportId = null;
+    state.recipeEditId = null;
+    persist();
+    render();
+  }
+  if (action === "toggle-recipe-edit") {
+    const importId = actionTarget.dataset.importId;
+    state.recipeEditId = state.recipeEditId === importId ? null : importId;
+    persist();
+    render();
+  }
+  if (action === "sync-recipes") {
+    syncRecipesFromServer();
+    return;
+  }
+  if (action === "delete-takeout") {
+    state.takeouts = (state.takeouts || []).filter((t) => t.id !== actionTarget.dataset.takeoutId);
+    state.lastAction = "Restaurant removed";
+    persist();
+    render();
+  }
+  if (action === "clear-chat") {
+    state.chatHistory = [];
+    persist();
+    render();
+  }
+  if (action === "chat-suggest") {
+    sendChatMessage(actionTarget.dataset.prompt);
+    return;
   }
   if (action === "cook-meal") cookMeal(actionTarget.dataset.mealId);
   if (action === "use-item" || action === "restock-item") {
@@ -958,21 +1782,107 @@ document.addEventListener("input", (event) => {
     return;
   }
 
-  const urlInput = event.target.closest("[data-action='import-recipe-url'] input[name='url']");
+  const urlInput = event.target.closest("[data-action='import-recipe-url'] [name='url']");
   if (urlInput) {
     state.urlDraft = urlInput.value;
     persist();
   }
+
+  const recipeSearch = event.target.closest("[data-action='search-recipes']");
+  if (recipeSearch) {
+    const cursor = recipeSearch.selectionStart;
+    state.recipeSearch = recipeSearch.value;
+    persist();
+    render();
+    const next = document.querySelector("[data-action='search-recipes']");
+    if (next) {
+      next.focus();
+      next.setSelectionRange(cursor, cursor);
+    }
+  }
 });
 
-document.addEventListener("submit", (event) => {
+document.addEventListener("submit", async (event) => {
   const urlForm = event.target.closest("[data-action='import-recipe-url']");
   if (urlForm) {
     event.preventDefault();
     const formData = new FormData(urlForm);
-    model.importRecipeUrl(state, String(formData.get("url") || ""));
+    await importRecipesFromText(String(formData.get("url") || ""));
+    return;
+  }
+
+  const correctionForm = event.target.closest("[data-action='correct-recipe-import']");
+  if (correctionForm) {
+    event.preventDefault();
+    const formData = new FormData(correctionForm);
+    const text = String(formData.get("text") || "").trim();
+    const title = String(formData.get("title") || "").trim();
+    if (!text) return;
+    await correctRecipeImport(correctionForm.dataset.importId, text, title);
+    return;
+  }
+
+  const takeoutForm = event.target.closest("[data-action='add-takeout']");
+  if (takeoutForm) {
+    event.preventDefault();
+    const fd = new FormData(takeoutForm);
+    const name = String(fd.get("name") || "").trim();
+    if (!name) return;
+    const takeout = {
+      id: `tko-${Date.now()}`,
+      name,
+      cuisine: String(fd.get("cuisine") || "").trim(),
+      url: String(fd.get("url") || "").trim(),
+      notes: String(fd.get("notes") || "").trim(),
+      tags: [],
+      addedAt: new Date().toISOString(),
+    };
+    state.takeouts = [takeout, ...(state.takeouts || [])];
+    state.lastAction = `${name} added`;
     persist();
     render();
+    takeoutForm.reset();
+    return;
+  }
+
+  const recipeEditForm = event.target.closest("[data-action='save-recipe-edit']");
+  if (recipeEditForm) {
+    event.preventDefault();
+    const fd = new FormData(recipeEditForm);
+    const importId = recipeEditForm.dataset.importId;
+    const reviewText = String(fd.get("reviewText") || "").trim();
+    if (reviewText) {
+      await correctRecipeImport(importId, reviewText, String(fd.get("title") || "").trim());
+    } else {
+      const recipeImport = state.recipeImports.find((r) => r.id === importId);
+      if (recipeImport) {
+        const title = String(fd.get("title") || "").trim();
+        if (title) recipeImport.title = title;
+        const time = parseInt(fd.get("time"), 10);
+        if (!isNaN(time) && time >= 0) recipeImport.time = time;
+        const servings = parseInt(fd.get("servings"), 10);
+        if (!isNaN(servings) && servings >= 1) recipeImport.servings = servings;
+        const summary = String(fd.get("summary") || "").trim();
+        if (summary) recipeImport.summary = summary;
+        recipeImport.notes = String(fd.get("notes") || "").trim();
+        state.lastAction = `${recipeImport.title} updated`;
+        await patchRecipeToServer(importId, recipeImport);
+      }
+    }
+    state.recipeEditId = null;
+    persist();
+    render();
+    return;
+  }
+
+  const chatForm = event.target.closest("[data-action='send-chat']");
+  if (chatForm) {
+    event.preventDefault();
+    const fd = new FormData(chatForm);
+    const message = String(fd.get("message") || "").trim();
+    if (!message) return;
+    chatForm.reset();
+    sendChatMessage(message);
     return;
   }
 

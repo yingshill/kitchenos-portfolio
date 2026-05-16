@@ -18,6 +18,7 @@
     selectedMealId: "meal-bowl",
     selectedRecipeImportId: "url-peanut-soba-tofu",
     urlDraft: "",
+    importJobs: [],
     lastAction: "Demo data loaded",
     pantry: [
       {
@@ -203,6 +204,7 @@
       {
         id: "url-peanut-soba-tofu",
         sourceUrl: "https://video.example.com/weeknight-peanut-soba-tofu",
+        fetchUrl: "https://video.example.com/weeknight-peanut-soba-tofu",
         sourceHost: "video.example.com",
         sourceType: "video",
         title: "Peanut Soba Tofu",
@@ -210,7 +212,10 @@
         confidence: 91,
         time: 18,
         servings: 2,
+        summary: "Fast noodles with broccoli, tofu, and a glossy peanut sauce.",
         savedAsMeal: false,
+        extractionStatus: "complete",
+        warnings: [],
         cover: {
           status: "generated",
           theme: "leaf",
@@ -255,6 +260,27 @@
       .replace(/(^-|-$)/g, "");
   }
 
+  function normalizeName(value) {
+    return String(value).toLowerCase();
+  }
+
+  function createPantryIndex(state) {
+    const pantryByName = new Map();
+    state.pantry.forEach((item) => {
+      const key = normalizeName(item.name);
+      if (!pantryByName.has(key)) pantryByName.set(key, item);
+    });
+    return pantryByName;
+  }
+
+  function createNameSet(items) {
+    return new Set(items.map((item) => normalizeName(item.name)));
+  }
+
+  function getPantryItemFromIndex(pantryIndex, name) {
+    return pantryIndex.get(normalizeName(name));
+  }
+
   function defaultIdFactory(prefix, name) {
     const suffix = name ? `-${slugify(name)}` : "";
     return `${prefix}${suffix}-${Date.now()}`;
@@ -265,105 +291,127 @@
       const url = new URL(String(value || "").trim());
       if (!["http:", "https:"].includes(url.protocol)) return null;
       url.hash = "";
+      stripTrackingParams(url);
       return url;
     } catch {
       return null;
     }
   }
 
+  function fetchUrlForValue(value) {
+    try {
+      const url = new URL(String(value || "").trim());
+      if (!["http:", "https:"].includes(url.protocol)) return "";
+      url.hash = "";
+      return url.href;
+    } catch {
+      return "";
+    }
+  }
+
+  function stripTrackingParams(url) {
+    [...url.searchParams.keys()].forEach((key) => {
+      if (isTrackingParam(key)) url.searchParams.delete(key);
+    });
+  }
+
+  function isTrackingParam(key) {
+    return (
+      key.startsWith("utm_") ||
+      [
+        "fbclid",
+        "gclid",
+        "igshid",
+        "mc_cid",
+        "mc_eid",
+        "source",
+        "spm",
+        "xsec_source",
+        "xsec_token",
+      ].includes(key)
+    );
+  }
+
   function sourceHost(url) {
     return url.hostname.replace(/^www\./, "");
   }
 
-  function recipeFixtureForUrl(url) {
+  function isRednoteUrl(url) {
+    const host = sourceHost(url);
+    return host === "rednote.com" || host === "xiaohongshu.com" || host.endsWith(".xiaohongshu.com");
+  }
+
+  function sourceTypeForUrl(url) {
     const text = `${url.href} ${url.hostname}`.toLowerCase();
-    if (text.includes("salmon")) {
-      return {
-        sourceType: text.includes("youtu") || text.includes("video") ? "video" : "article",
-        title: "Citrus Salmon Rice",
-        creator: "KitchenOS Import",
-        confidence: 88,
-        time: 24,
-        servings: 2,
-        coverTheme: "tomato",
-        summary: "Bright salmon bowl with rice, greens, and yogurt citrus sauce.",
-        ingredients: [
-          { name: "Wild salmon", category: "Protein", servings: 2 },
-          { name: "Jasmine rice", category: "Grain", servings: 2 },
-          { name: "Baby spinach", category: "Produce", servings: 2 },
-          { name: "Greek yogurt", category: "Dairy", servings: 1 },
-          { name: "Lemons", category: "Produce", servings: 1 },
-        ],
-        steps: [
-          "Season salmon with salt, pepper, and citrus zest.",
-          "Cook rice until fluffy and keep it warm.",
-          "Sear salmon skin-side down, then finish gently until just cooked through.",
-          "Whisk yogurt with lemon juice and a spoon of warm water.",
-          "Build bowls with rice, spinach, salmon, and citrus yogurt sauce.",
-        ],
-      };
-    }
+    if (isRednoteUrl(url) || text.includes("instagram") || text.includes("tiktok")) return "social";
+    if (text.includes("youtu") || text.includes("video") || text.includes("vimeo")) return "video";
+    return "article";
+  }
 
-    if (text.includes("soba") || text.includes("tofu") || text.includes("youtu") || text.includes("video")) {
-      return {
-        sourceType: text.includes("youtu") || text.includes("video") ? "video" : "article",
-        title: "Peanut Soba Tofu",
-        creator: "KitchenOS Import",
-        confidence: 91,
-        time: 18,
-        servings: 2,
-        coverTheme: "leaf",
-        summary: "Fast noodles with tofu, broccoli, and a glossy peanut sauce.",
-        ingredients: [
-          { name: "Soba noodles", category: "Grain", servings: 2 },
-          { name: "Tofu", category: "Protein", servings: 2 },
-          { name: "Broccoli", category: "Produce", servings: 2 },
-          { name: "Peanut sauce", category: "Pantry", servings: 2 },
-          { name: "Limes", category: "Produce", servings: 1 },
-        ],
-        steps: [
-          "Boil soba noodles until just tender, then rinse under cool water to stop cooking.",
-          "Press tofu dry, cube it, and sear until the edges are golden.",
-          "Steam or saute broccoli until bright green with a firm bite.",
-          "Warm peanut sauce with a splash of water until glossy and pourable.",
-          "Toss noodles, tofu, broccoli, and sauce together, then finish with lime.",
-        ],
-      };
+  function categoryForIngredient(name) {
+    const text = normalizeName(name);
+    if (/(spinach|broccoli|tomato|lime|lemon|blueberr|garlic|onion|pepper|cilantro|basil|lettuce|greens?)/.test(text)) {
+      return "Produce";
     }
+    if (/(salmon|tofu|egg|chicken|beef|pork|turkey|shrimp|fish|beans?|lentils?)/.test(text)) return "Protein";
+    if (/(yogurt|milk|cheese|cream|butter)/.test(text)) return "Dairy";
+    if (/(rice|noodle|pasta|soba|bread|flour|oat|quinoa|tortilla)/.test(text)) return "Grain";
+    return "Pantry";
+  }
 
+  function coverThemeForIngredients(ingredients) {
+    if (ingredients.some((ingredient) => ingredient.category === "Produce")) return "leaf";
+    if (ingredients.some((ingredient) => ingredient.category === "Protein")) return "tomato";
+    if (ingredients.some((ingredient) => ingredient.category === "Grain")) return "mustard";
+    return "plum";
+  }
+
+  function normalizeServings(value, fallback = 1) {
+    const number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) return fallback;
+    return Math.max(1, Math.round(number));
+  }
+
+  function normalizeRecipeExtraction(url, extraction) {
+    if (!extraction || typeof extraction !== "object") return null;
+    const title = String(extraction.title || "").trim();
+    if (!title) return null;
+    const ingredients = (Array.isArray(extraction.ingredients) ? extraction.ingredients : [])
+      .map((ingredient) => ({
+        name: String(ingredient.name || "").trim(),
+        category: ingredient.category || categoryForIngredient(ingredient.name || ""),
+        servings: normalizeServings(ingredient.servings),
+      }))
+      .filter((ingredient) => ingredient.name);
+    const steps = (Array.isArray(extraction.steps) ? extraction.steps : [])
+      .map((step) => String(step || "").trim())
+      .filter(Boolean);
     return {
-      sourceType: text.includes("youtu") || text.includes("video") ? "video" : "article",
-      title: "Tomato Chickpea Skillet",
-      creator: "KitchenOS Import",
-      confidence: 84,
-      time: 30,
-      servings: 2,
-      coverTheme: "mustard",
-      summary: "One-pan eggs, chickpeas, tomatoes, and greens for a pantry-forward dinner.",
-      ingredients: [
-        { name: "Pasture eggs", category: "Protein", servings: 2 },
-        { name: "Chickpeas", category: "Pantry", servings: 2 },
-        { name: "Cherry tomatoes", category: "Produce", servings: 2 },
-        { name: "Baby spinach", category: "Produce", servings: 1 },
-        { name: "Olive oil", category: "Pantry", servings: 1 },
-      ],
-      steps: [
-        "Warm olive oil in a skillet and soften tomatoes until they release juice.",
-        "Fold in chickpeas and simmer until the sauce thickens slightly.",
-        "Stir in spinach until just wilted.",
-        "Make two wells and crack eggs into the skillet.",
-        "Cover and cook until whites are set and yolks are still soft.",
-      ],
+      sourceType: extraction.sourceType || sourceTypeForUrl(url),
+      title,
+      creator: String(extraction.creator || sourceHost(url)).trim(),
+      confidence: Math.max(0, Math.min(100, Math.round(Number(extraction.confidence) || 0))),
+      time: Math.max(0, Math.round(Number(extraction.time) || 0)),
+      servings: normalizeServings(extraction.servings, 1),
+      fetchUrl: String(extraction.fetchUrl || url.href).trim(),
+      coverTheme: extraction.coverTheme || coverThemeForIngredients(ingredients),
+      summary: String(extraction.summary || `Imported from ${sourceHost(url)}.`).trim(),
+      ingredients,
+      steps,
+      extractionStatus: extraction.extractionStatus || (ingredients.length && steps.length ? "complete" : "needs-review"),
+      warnings: Array.isArray(extraction.warnings) ? extraction.warnings.map(String).filter(Boolean) : [],
     };
   }
 
   function createCoverPrompt(recipe) {
     const ingredients = recipe.ingredients.map((ingredient) => ingredient.name).join(", ");
-    return `KitchenOS editorial food cover for ${recipe.title} with ${ingredients}. Clean overhead composition, natural light, no text, no logos, no brand packaging.`;
+    const ingredientPrompt = ingredients ? ` with ${ingredients}` : "";
+    return `KitchenOS editorial food cover for ${recipe.title}${ingredientPrompt}. Clean overhead composition, natural light, no text, no logos, no brand packaging.`;
   }
 
   function getPantryItem(state, name) {
-    return state.pantry.find((item) => item.name.toLowerCase() === String(name).toLowerCase());
+    const targetName = normalizeName(name);
+    return state.pantry.find((item) => normalizeName(item.name) === targetName);
   }
 
   function pantryValue(state) {
@@ -391,9 +439,9 @@
     return state.recipeImports.find((item) => item.id === importId);
   }
 
-  function mealCoverage(state, meal) {
+  function mealCoverage(state, meal, pantryIndex = createPantryIndex(state)) {
     const needs = meal.needs.map((need) => {
-      const pantryItem = getPantryItem(state, need.item);
+      const pantryItem = getPantryItemFromIndex(pantryIndex, need.item);
       const available = pantryItem ? pantryItem.servings : 0;
       return {
         ...need,
@@ -406,8 +454,7 @@
     return { needs, coverage };
   }
 
-  function scoreMeal(state, meal) {
-    const { coverage } = mealCoverage(state, meal);
+  function scoreMealFromCoverage(state, meal, coverage) {
     let score = Math.round(coverage * 58);
     if (meal.moods.includes(state.mood)) score += 18;
     if (meal.energy === state.energy) score += 12;
@@ -416,31 +463,41 @@
     return Math.max(0, Math.min(100, score));
   }
 
-  function recommendedMeals(state) {
+  function scoreMeal(state, meal) {
+    return scoreMealFromCoverage(state, meal, mealCoverage(state, meal).coverage);
+  }
+
+  function recommendedMeals(state, pantryIndex = createPantryIndex(state)) {
     return state.meals
-      .map((meal) => ({ ...meal, score: scoreMeal(state, meal), coverage: mealCoverage(state, meal) }))
+      .map((meal) => {
+        const coverage = mealCoverage(state, meal, pantryIndex);
+        return { ...meal, score: scoreMealFromCoverage(state, meal, coverage.coverage), coverage };
+      })
       .sort((a, b) => b.score - a.score);
   }
 
   function buildGroceryCandidates(state) {
     const candidates = new Map();
+    const pantryIndex = createPantryIndex(state);
+    const groceryNames = createNameSet(state.grocery);
     lowStockItems(state).forEach((item) => {
-      candidates.set(item.name, {
+      candidates.set(normalizeName(item.name), {
         name: item.name,
         category: item.category,
         qty: `${Math.max(item.minServings * 2 - item.servings, 1)} servings`,
         source: "Low stock",
       });
     });
-    recommendedMeals(state)
+    recommendedMeals(state, pantryIndex)
       .slice(0, 2)
       .forEach((meal) => {
         meal.coverage.needs
           .filter((need) => need.missing > 0)
           .forEach((need) => {
-            if (!candidates.has(need.item)) {
-              const pantryEntry = getPantryItem(state, need.item);
-              candidates.set(need.item, {
+            const candidateName = normalizeName(need.item);
+            if (!candidates.has(candidateName)) {
+              const pantryEntry = getPantryItemFromIndex(pantryIndex, need.item);
+              candidates.set(candidateName, {
                 name: need.item,
                 category: pantryEntry ? pantryEntry.category : "Pantry",
                 qty: `${need.missing} serving`,
@@ -449,14 +506,12 @@
             }
           });
       });
-    return [...candidates.values()].filter(
-      (candidate) => !state.grocery.some((item) => item.name.toLowerCase() === candidate.name.toLowerCase()),
-    );
+    return [...candidates.values()].filter((candidate) => !groceryNames.has(normalizeName(candidate.name)));
   }
 
-  function recipeImportCoverage(state, recipeImport) {
+  function recipeImportCoverage(state, recipeImport, pantryIndex = createPantryIndex(state)) {
     const ingredients = recipeImport.ingredients.map((ingredient) => {
-      const pantryItem = getPantryItem(state, ingredient.name);
+      const pantryItem = getPantryItemFromIndex(pantryIndex, ingredient.name);
       const available = pantryItem ? pantryItem.servings : 0;
       return {
         ...ingredient,
@@ -471,6 +526,56 @@
     return { ingredients, coverage };
   }
 
+  function assignRecipeImportData(recipeImport, url, recipe) {
+    recipeImport.sourceUrl = url.href;
+    recipeImport.fetchUrl = recipe.fetchUrl || url.href;
+    recipeImport.sourceHost = sourceHost(url);
+    recipeImport.sourceType = recipe.sourceType;
+    recipeImport.title = recipe.title;
+    recipeImport.creator = recipe.creator;
+    recipeImport.confidence = recipe.confidence;
+    recipeImport.time = recipe.time;
+    recipeImport.servings = recipe.servings;
+    recipeImport.cover = {
+      status: "prompt-ready",
+      theme: recipe.coverTheme,
+      prompt: createCoverPrompt(recipe),
+    };
+    recipeImport.ingredients = recipe.ingredients;
+    recipeImport.steps = recipe.steps;
+    recipeImport.summary = recipe.summary;
+    recipeImport.extractionStatus = recipe.extractionStatus;
+    recipeImport.warnings = recipe.warnings;
+    return recipeImport;
+  }
+
+  function updateRecipeCover(state, importId, cover) {
+    const recipeImport = getRecipeImport(state, importId);
+    if (!recipeImport || !cover || typeof cover !== "object") return { status: "not-found" };
+    recipeImport.cover = {
+      ...recipeImport.cover,
+      ...cover,
+    };
+    state.lastAction =
+      recipeImport.cover.status === "ai-generated"
+        ? `${recipeImport.title} cover generated`
+        : recipeImport.cover.message || "Cover generation updated";
+    return { status: "updated", recipeImport };
+  }
+
+  function shouldRefreshRecipeImport(existing, recipe) {
+    if (!existing.extractionStatus) return true;
+    if (existing.extractionStatus !== "needs-review") return false;
+    if (recipe.extractionStatus === "complete") return true;
+    if (recipe.confidence > existing.confidence) return true;
+    return (
+      Array.isArray(existing.steps) &&
+      existing.steps.length === 0 &&
+      recipe.title &&
+      recipe.title !== existing.title
+    );
+  }
+
   function importRecipeUrl(state, value, options = {}) {
     const url = normalizeUrl(value);
     if (!url) {
@@ -479,35 +584,34 @@
     }
 
     const normalizedUrl = url.href;
+    const extraction = options.extraction || options.recipe;
+    const recipe = normalizeRecipeExtraction(url, extraction);
+    if (recipe && !extraction?.fetchUrl) recipe.fetchUrl = fetchUrlForValue(value) || normalizedUrl;
     const existing = state.recipeImports.find((item) => item.sourceUrl === normalizedUrl);
     if (existing) {
+      if (recipe && (options.forceRefresh || shouldRefreshRecipeImport(existing, recipe))) {
+        assignRecipeImportData(existing, url, recipe);
+        state.selectedRecipeImportId = existing.id;
+        state.urlDraft = "";
+        state.lastAction = `${existing.title} refreshed`;
+        addEvent(state, "meal", "Recipe URL refreshed", `${existing.title} refreshed from ${existing.sourceHost}.`, options);
+        return { status: "updated", recipeImport: existing };
+      }
       state.selectedRecipeImportId = existing.id;
       state.lastAction = "Recipe URL already imported";
       return { status: "duplicate", recipeImport: existing };
     }
 
     const idFactory = options.idFactory || defaultIdFactory;
-    const recipe = recipeFixtureForUrl(url);
+    if (!recipe) {
+      state.lastAction = "Live extraction did not return recipe data";
+      return { status: "needs-extraction" };
+    }
     const recipeImport = {
       id: idFactory("url", recipe.title),
-      sourceUrl: normalizedUrl,
-      sourceHost: sourceHost(url),
-      sourceType: recipe.sourceType,
-      title: recipe.title,
-      creator: recipe.creator,
-      confidence: recipe.confidence,
-      time: recipe.time,
-      servings: recipe.servings,
       savedAsMeal: false,
-      cover: {
-        status: "generated",
-        theme: recipe.coverTheme,
-        prompt: createCoverPrompt(recipe),
-      },
-      ingredients: recipe.ingredients,
-      steps: recipe.steps,
-      summary: recipe.summary,
     };
+    assignRecipeImportData(recipeImport, url, recipe);
 
     state.recipeImports = [recipeImport, ...state.recipeImports];
     state.selectedRecipeImportId = recipeImport.id;
@@ -517,21 +621,44 @@
     return { status: "imported", recipeImport };
   }
 
+  function updateRecipeImport(state, importId, extraction, options = {}) {
+    const recipeImport = getRecipeImport(state, importId);
+    if (!recipeImport) return { status: "not-found" };
+    const url = normalizeUrl(recipeImport.sourceUrl);
+    const recipe = normalizeRecipeExtraction(url, extraction);
+    if (!url || !recipe) {
+      state.lastAction = "Recipe correction did not return usable data";
+      return { status: "invalid" };
+    }
+
+    assignRecipeImportData(recipeImport, url, recipe);
+    state.selectedRecipeImportId = recipeImport.id;
+    state.lastAction = `${recipeImport.title} corrected`;
+    addEvent(state, "meal", "Recipe corrected", `${recipeImport.title} updated from reviewed text.`, options);
+    return { status: "updated", recipeImport };
+  }
+
   function syncRecipeImportGaps(state, importId, options = {}) {
     const recipeImport = getRecipeImport(state, importId);
     if (!recipeImport) return [];
     const idFactory = options.idFactory || defaultIdFactory;
-    const additions = recipeImportCoverage(state, recipeImport).ingredients
+    const groceryNames = createNameSet(state.grocery);
+    const additions = [];
+    recipeImportCoverage(state, recipeImport).ingredients
       .filter((ingredient) => ingredient.missing > 0)
-      .filter((ingredient) => !state.grocery.some((item) => item.name.toLowerCase() === ingredient.name.toLowerCase()))
-      .map((ingredient) => ({
-        id: idFactory("gro", ingredient.name),
-        name: ingredient.name,
-        category: ingredient.category,
-        qty: `${ingredient.missing} serving${ingredient.missing === 1 ? "" : "s"}`,
-        source: "URL recipe gap",
-        done: false,
-      }));
+      .forEach((ingredient) => {
+        const ingredientName = normalizeName(ingredient.name);
+        if (groceryNames.has(ingredientName)) return;
+        additions.push({
+          id: idFactory("gro", ingredient.name),
+          name: ingredient.name,
+          category: ingredient.category,
+          qty: `${ingredient.missing} serving${ingredient.missing === 1 ? "" : "s"}`,
+          source: "URL recipe gap",
+          done: false,
+        });
+        groceryNames.add(ingredientName);
+      });
 
     if (additions.length > 0) {
       state.grocery = [...state.grocery, ...additions];
@@ -591,8 +718,9 @@
 
     const added = [];
     const updated = [];
+    const pantryIndex = createPantryIndex(state);
     receipt.items.forEach((lineItem) => {
-      const existing = getPantryItem(state, lineItem.name);
+      const existing = getPantryItemFromIndex(pantryIndex, lineItem.name);
       if (existing) {
         existing.servings += lineItem.servings;
         existing.expiresIn = Math.max(existing.expiresIn, lineItem.expiresIn);
@@ -611,6 +739,7 @@
           source: receipt.merchant,
         };
         state.pantry.push(pantryItem);
+        pantryIndex.set(normalizeName(pantryItem.name), pantryItem);
         added.push(pantryItem.name);
       }
     });
@@ -652,8 +781,10 @@
     const missing = coverage.needs.filter((need) => need.missing > 0);
 
     if (missing.length > 0) {
+      const groceryNames = createNameSet(state.grocery);
       missing.forEach((need) => {
-        if (!state.grocery.some((item) => item.name.toLowerCase() === need.item.toLowerCase())) {
+        const needName = normalizeName(need.item);
+        if (!groceryNames.has(needName)) {
           state.grocery.push({
             id: idFactory("gro", need.item),
             name: need.item,
@@ -662,6 +793,7 @@
             source: "Meal gap",
             done: false,
           });
+          groceryNames.add(needName);
         }
       });
       state.lastAction = `${meal.name} needs ${missing.length} grocery gap${missing.length === 1 ? "" : "s"}`;
@@ -669,8 +801,9 @@
       return { status: "missing", meal, missing };
     }
 
+    const pantryIndex = createPantryIndex(state);
     meal.needs.forEach((need) => {
-      const pantryItem = getPantryItem(state, need.item);
+      const pantryItem = getPantryItemFromIndex(pantryIndex, need.item);
       pantryItem.servings = Math.max(0, pantryItem.servings - need.servings);
     });
     state.lastAction = `${meal.name} cooked`;
@@ -745,5 +878,7 @@
     syncGrocery,
     syncRecipeImportGaps,
     toggleGroceryItem,
+    updateRecipeCover,
+    updateRecipeImport,
   };
 });
