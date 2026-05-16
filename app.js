@@ -940,14 +940,6 @@ function renderRecipeReadView(recipe) {
         <p class="recipe-summary-text">${escapeHtml(recipe.summary || `Imported from ${recipe.sourceHost}.`)}</p>
         <span class="score-ring" aria-label="${escapeHtml(coveragePercent)} percent pantry coverage">${escapeHtml(coveragePercent)}</span>
       </div>
-      <div class="recipe-meta">
-        <a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceHost)}</a>
-        <span class="badge blue">${escapeHtml(recipe.sourceType)}</span>
-        ${recipe.time > 0 ? `<span class="badge mustard">${escapeHtml(recipe.time)} min</span>` : ""}
-        ${recipe.servings > 0 ? `<span class="badge">${escapeHtml(recipe.servings)} srv</span>` : ""}
-        <span class="badge ${recipe.extractionStatus === "needs-review" ? "mustard" : "leaf"}">${escapeHtml(recipe.extractionStatus === "needs-review" ? "needs review" : "complete")}</span>
-        <span class="badge plum">${escapeHtml(recipe.confidence)}% confidence</span>
-      </div>
       ${
         coverage.ingredients.length
           ? `<div><p class="eyebrow" style="margin:0 0 8px">Ingredients</p><div class="need-list">${coverage.ingredients.map(renderRecipeIngredientRow).join("")}</div></div>`
