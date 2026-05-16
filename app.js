@@ -108,10 +108,12 @@ function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const base = { ...clone(seedState), ...defaults };
-    if (!saved) return base;
-    const merged = { ...base, ...JSON.parse(saved) };
+    const merged = saved ? { ...base, ...JSON.parse(saved) } : base;
     if (merged.view === "receipts") merged.view = "recipe";
     merged.chatLoading = false;
+    const params = new URLSearchParams(location.search);
+    if (params.get("view")) merged.view = params.get("view");
+    if (params.get("recipe")) merged.selectedRecipeImportId = params.get("recipe");
     return merged;
   } catch {
     return { ...clone(seedState), ...defaults };
@@ -828,31 +830,29 @@ function renderRecipe() {
     (item) => !search || item.title.toLowerCase().includes(search.toLowerCase()),
   );
   return `
-    <div class="recipe-library${selected ? " has-panel" : ""}">
-      <div class="recipe-library-main">
-        <section class="panel" aria-labelledby="recipe-lib-heading">
-          <div class="panel-header">
-            <div>
-              <h2 id="recipe-lib-heading">Recipe library</h2>
-              <p class="status-note">${escapeHtml(state.recipeImports.length)} saved recipe${state.recipeImports.length === 1 ? "" : "s"} · Import more with <code>node cli/import.js &lt;url&gt;</code></p>
-            </div>
-            <div class="toolbar">
-              <label class="field">
-                <span>Search</span>
-                <input type="search" data-action="search-recipes" value="${escapeHtml(search)}" placeholder="Recipe name" />
-              </label>
-              <button class="action-button" type="button" data-action="sync-recipes">
-                ${icon("refresh")} Sync
-              </button>
-            </div>
+    <div class="recipe-library">
+      <section class="panel" aria-labelledby="recipe-lib-heading">
+        <div class="panel-header">
+          <div>
+            <h2 id="recipe-lib-heading">Recipe library</h2>
+            <p class="status-note">${escapeHtml(state.recipeImports.length)} saved recipe${state.recipeImports.length === 1 ? "" : "s"} · Import more with <code>node cli/import.js &lt;url&gt;</code></p>
           </div>
-        </section>
-        ${
-          filtered.length
-            ? `<div class="recipe-card-grid">${filtered.map((r) => renderRecipeLibraryCard(r, selected?.id === r.id)).join("")}</div>`
-            : `<div class="empty-state"><p>${search ? "No recipes match your search." : "No recipes in your library yet."}</p>${!search ? `<p>Run <code>node cli/import.js &lt;url&gt;</code> to import your first recipe, or click Sync to load from the server.</p>` : ""}</div>`
-        }
-      </div>
+          <div class="toolbar">
+            <label class="field">
+              <span>Search</span>
+              <input type="search" data-action="search-recipes" value="${escapeHtml(search)}" placeholder="Recipe name" />
+            </label>
+            <button class="action-button" type="button" data-action="sync-recipes">
+              ${icon("refresh")} Sync
+            </button>
+          </div>
+        </div>
+      </section>
+      ${
+        filtered.length
+          ? `<div class="recipe-card-grid">${filtered.map((r) => renderRecipeLibraryCard(r, selected?.id === r.id)).join("")}</div>`
+          : `<div class="empty-state"><p>${search ? "No recipes match your search." : "No recipes in your library yet."}</p>${!search ? `<p>Run <code>node cli/import.js &lt;url&gt;</code> to import your first recipe, or click Sync to load from the server.</p>` : ""}</div>`
+      }
       ${selected ? renderRecipeDetailPanel(selected) : ""}
     </div>
   `;
@@ -885,58 +885,66 @@ function renderRecipeDetailPanel(recipe) {
   const isEditing = state.recipeEditId === recipe.id;
   const coverage = model.recipeImportCoverage(state, recipe);
   const missingCount = coverage.ingredients.filter((i) => i.missing > 0).length;
+  const cover = recipe.cover || {};
+  const coverBanner = cover.imageDataUrl
+    ? `<img class="recipe-modal-cover-banner" src="${escapeHtml(cover.imageDataUrl)}" alt="" />`
+    : "";
   return `
-    <aside class="recipe-detail-panel" aria-label="Recipe detail">
-      <div class="recipe-panel-header">
-        <strong>Recipe detail</strong>
-        <div class="row-actions">
-          <button class="icon-button" type="button" data-action="toggle-recipe-edit" data-import-id="${escapeHtml(recipe.id)}" title="${isEditing ? "Cancel edit" : "Edit recipe"}" aria-label="${isEditing ? "Cancel edit" : "Edit recipe"}">
-            ${isEditing ? icon("close") : icon("edit")}
-          </button>
-          <button class="icon-button" type="button" data-action="close-recipe-panel" title="Close" aria-label="Close panel">
-            ${icon("close")}
-          </button>
+    <div class="recipe-modal-backdrop" data-action="close-recipe-panel" role="dialog" aria-modal="true" aria-label="Recipe detail">
+      <div class="recipe-modal" role="document">
+        <div class="recipe-modal-header">
+          <div class="recipe-modal-title">
+            <span class="eyebrow">Recipe</span>
+            <strong>${escapeHtml(recipe.title)}</strong>
+          </div>
+          <div class="row-actions">
+            <button class="icon-button" type="button" data-action="toggle-recipe-edit" data-import-id="${escapeHtml(recipe.id)}" title="${isEditing ? "Cancel edit" : "Edit recipe"}" aria-label="${isEditing ? "Cancel edit" : "Edit recipe"}">
+              ${isEditing ? icon("close") : icon("edit")}
+            </button>
+            <button class="icon-button" type="button" data-action="close-recipe-panel" title="Close" aria-label="Close">
+              ${icon("close")}
+            </button>
+          </div>
+        </div>
+        ${coverBanner}
+        <div class="recipe-modal-body">
+          ${isEditing ? renderRecipeEditForm(recipe) : renderRecipeReadView(recipe)}
+          <div class="button-row">
+            <button class="secondary-button" type="button" data-action="sync-recipe-gaps" data-import-id="${escapeHtml(recipe.id)}" ${recipe.ingredients.length ? "" : "disabled"}>
+              Add missing to grocery
+            </button>
+            <button class="secondary-button" type="button" data-action="save-recipe-meal" data-import-id="${escapeHtml(recipe.id)}" ${recipe.savedAsMeal || !recipe.ingredients.length ? "disabled" : ""}>
+              ${recipe.savedAsMeal ? "Saved as meal" : "Save as meal"}
+            </button>
+            <button class="secondary-button" type="button" data-action="generate-cover" data-import-id="${escapeHtml(recipe.id)}">
+              Generate AI cover
+            </button>
+            <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipe.id)}">
+              Re-extract
+            </button>
+          </div>
+          ${renderExtractionWarnings(recipe)}
+          ${missingCount > 0 ? `<p class="status-note">${missingCount} ingredient${missingCount === 1 ? "" : "s"} missing from pantry.</p>` : ""}
         </div>
       </div>
-      <div class="recipe-panel-body">
-        ${renderGeneratedCover(recipe)}
-        ${isEditing ? renderRecipeEditForm(recipe) : renderRecipeReadView(recipe)}
-        <div class="button-row">
-          <button class="secondary-button" type="button" data-action="sync-recipe-gaps" data-import-id="${escapeHtml(recipe.id)}" ${recipe.ingredients.length ? "" : "disabled"}>
-            Add missing to grocery
-          </button>
-          <button class="secondary-button" type="button" data-action="save-recipe-meal" data-import-id="${escapeHtml(recipe.id)}" ${recipe.savedAsMeal || !recipe.ingredients.length ? "disabled" : ""}>
-            ${recipe.savedAsMeal ? "Saved as meal" : "Save as meal"}
-          </button>
-          <button class="secondary-button" type="button" data-action="generate-cover" data-import-id="${escapeHtml(recipe.id)}">
-            Generate AI cover
-          </button>
-          <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipe.id)}">
-            Re-extract
-          </button>
-        </div>
-        ${renderExtractionWarnings(recipe)}
-        ${missingCount > 0 ? `<p class="status-note">${missingCount} ingredient${missingCount === 1 ? "" : "s"} missing from pantry.</p>` : ""}
-      </div>
-    </aside>
+    </div>
   `;
 }
 
 function renderRecipeReadView(recipe) {
   const coverage = model.recipeImportCoverage(state, recipe);
+  const coveragePercent = Math.round(coverage.coverage * 100);
   return `
     <div class="recipe-read-view">
-      <div class="recipe-top">
-        <div>
-          <h3>${escapeHtml(recipe.title)}</h3>
-          <p>${escapeHtml(recipe.summary || `Imported from ${recipe.sourceHost}.`)}</p>
-        </div>
-        <span class="score-ring" aria-label="${escapeHtml(Math.round(coverage.coverage * 100))} percent pantry coverage">${escapeHtml(Math.round(coverage.coverage * 100))}</span>
+      <div class="recipe-summary-row">
+        <p class="recipe-summary-text">${escapeHtml(recipe.summary || `Imported from ${recipe.sourceHost}.`)}</p>
+        <span class="score-ring" aria-label="${escapeHtml(coveragePercent)} percent pantry coverage">${escapeHtml(coveragePercent)}</span>
       </div>
       <div class="recipe-meta">
         <a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceHost)}</a>
         <span class="badge blue">${escapeHtml(recipe.sourceType)}</span>
         ${recipe.time > 0 ? `<span class="badge mustard">${escapeHtml(recipe.time)} min</span>` : ""}
+        ${recipe.servings > 0 ? `<span class="badge">${escapeHtml(recipe.servings)} srv</span>` : ""}
         <span class="badge ${recipe.extractionStatus === "needs-review" ? "mustard" : "leaf"}">${escapeHtml(recipe.extractionStatus === "needs-review" ? "needs review" : "complete")}</span>
         <span class="badge plum">${escapeHtml(recipe.confidence)}% confidence</span>
       </div>
@@ -1702,6 +1710,8 @@ document.addEventListener("click", (event) => {
     render();
   }
   if (action === "close-recipe-panel") {
+    // ignore if click landed inside the modal card rather than on the backdrop itself
+    if (actionTarget.classList.contains("recipe-modal-backdrop") && event.target.closest(".recipe-modal")) return;
     state.selectedRecipeImportId = null;
     state.recipeEditId = null;
     persist();
