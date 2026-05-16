@@ -156,6 +156,10 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function stripHashtags(value) {
+  return String(value || "").replace(/#\S+/g, "").replace(/\s{2,}/g, " ").trim();
+}
+
 function money(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 }
@@ -869,7 +873,7 @@ function renderRecipeLibraryCard(recipe, isSelected) {
         ${cover.imageDataUrl ? `<img src="${escapeHtml(cover.imageDataUrl)}" alt="" />` : ""}
       </div>
       <div class="recipe-card-info">
-        <strong class="recipe-card-title">${escapeHtml(recipe.title)}</strong>
+        <strong class="recipe-card-title">${escapeHtml(stripHashtags(recipe.title))}</strong>
         <div class="recipe-meta">
           <a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceHost)}</a>
           <span class="badge blue">${escapeHtml(recipe.sourceType)}</span>
@@ -895,7 +899,7 @@ function renderRecipeDetailPanel(recipe) {
         <div class="recipe-modal-header">
           <div class="recipe-modal-title">
             <span class="eyebrow">Recipe</span>
-            <strong>${escapeHtml(recipe.title)}</strong>
+            <strong>${escapeHtml(stripHashtags(recipe.title))}</strong>
           </div>
           <div class="row-actions">
             <button class="icon-button" type="button" data-action="toggle-recipe-edit" data-import-id="${escapeHtml(recipe.id)}" title="${isEditing ? "Cancel edit" : "Edit recipe"}" aria-label="${isEditing ? "Cancel edit" : "Edit recipe"}">
@@ -937,7 +941,7 @@ function renderRecipeReadView(recipe) {
   return `
     <div class="recipe-read-view">
       <div class="recipe-summary-row">
-        <p class="recipe-summary-text">${escapeHtml(recipe.summary || `Imported from ${recipe.sourceHost}.`)}</p>
+        <p class="recipe-summary-text">${escapeHtml(stripHashtags(recipe.summary || `Imported from ${recipe.sourceHost}.`))}</p>
         <span class="score-ring" aria-label="${escapeHtml(coveragePercent)} percent pantry coverage">${escapeHtml(coveragePercent)}</span>
       </div>
       ${
