@@ -1,0 +1,12 @@
+[
+  {
+    "id": "tko-demo-1",
+    "name": "Burma Superstar",
+    "cuisine": "Burmese",
+    "address": "309 Clement St, San Francisco, CA",
+    "url": "",
+    "notes": "Tea leaf salad is non-negotiable. Rainbow salad too. Long waits — go at off-peak hours or call ahead.",
+    "tags": ["salad", "noodles", "favorite"],
+    "addedAt": "2026-05-16T00:00:00.000Z"
+  }
+]

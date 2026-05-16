@@ -1,0 +1,40 @@
+[
+  {
+    "id": "url-peanut-soba-tofu",
+    "sourceUrl": "https://video.example.com/weeknight-peanut-soba-tofu",
+    "fetchUrl": "https://video.example.com/weeknight-peanut-soba-tofu",
+    "sourceHost": "video.example.com",
+    "sourceType": "video",
+    "title": "Peanut Soba Tofu",
+    "creator": "Weeknight Lab",
+    "confidence": 91,
+    "time": 18,
+    "servings": 2,
+    "summary": "Fast noodles with broccoli, tofu, and a glossy peanut sauce.",
+    "savedAsMeal": false,
+    "extractionStatus": "complete",
+    "warnings": [],
+    "cover": {
+      "status": "generated",
+      "theme": "leaf",
+      "prompt": "KitchenOS editorial food cover for Peanut Soba Tofu with soba noodles, tofu, broccoli, peanut sauce, limes. Clean overhead composition, natural light, no text, no logos, no brand packaging."
+    },
+    "ingredients": [
+      { "name": "Soba noodles", "category": "Grain", "servings": 2 },
+      { "name": "Tofu", "category": "Protein", "servings": 2 },
+      { "name": "Broccoli", "category": "Produce", "servings": 2 },
+      { "name": "Peanut sauce", "category": "Pantry", "servings": 2 },
+      { "name": "Limes", "category": "Produce", "servings": 1 }
+    ],
+    "steps": [
+      "Boil soba noodles until just tender, then rinse under cool water to stop cooking.",
+      "Press tofu dry, cube it, and sear until the edges are golden.",
+      "Steam or saute broccoli until bright green with a firm bite.",
+      "Warm peanut sauce with a splash of water until glossy and pourable.",
+      "Toss noodles, tofu, broccoli, and sauce together, then finish with lime."
+    ],
+    "notes": "Seed recipe from demo data. Replace or add more via the CLI pipeline.",
+    "tags": ["quick", "weeknight", "noodles"],
+    "importedAt": "2026-05-16T00:00:00.000Z"
+  }
+]

@@ -1,0 +1,24 @@
+# KitchenOS URL Import Queue
+#
+# Each entry is a recipe or video URL to process.
+# The 'notes' field is forwarded to the AI as extraction hints — useful for
+# Rednote posts where the key details are in your saved personal notes.
+#
+# Usage:
+#   node cli/import.js queue.yaml        — process the entire queue
+#   node cli/import.js https://...       — import a single URL
+#
+# Fields:
+#   url     required  The recipe, video, or social post URL.
+#   notes   optional  Human context for the extractor (ingredients, tips, source notes).
+#   tags    optional  String list for local filtering in the UI.
+
+entries:
+  - url: https://video.example.com/weeknight-peanut-soba-tofu
+    notes: |
+      From the weeknight series. The sauce is the star — pre-made peanut sauce works fine.
+      Good substitute: rice noodles instead of soba.
+    tags:
+      - weeknight
+      - noodles
+      - quick
