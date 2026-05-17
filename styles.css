@@ -1357,6 +1357,76 @@ button:disabled {
   gap: 10px;
 }
 
+.ingredients-editor,
+.steps-editor {
+  display: grid;
+  gap: 6px;
+}
+
+.ingredient-row,
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ingredient-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.ingredient-servings {
+  width: 52px;
+  text-align: center;
+}
+
+.step-num {
+  flex-shrink: 0;
+  width: 20px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.step-text {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+}
+
+.ingredient-row .icon-button,
+.step-row .icon-button {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.ingredient-row input,
+.step-row textarea {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.add-row-button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: left;
+}
+
+.add-row-button:hover {
+  color: var(--ink);
+}
+
 /* ── Takeouts ────────────────────────────────────────────────── */
 
 .takeouts-grid {

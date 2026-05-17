@@ -740,6 +740,24 @@ function renderRecipeReadView(recipe) {
   `;
 }
 
+function renderIngredientRow(ing) {
+  return `
+    <div class="ingredient-row">
+      <input class="ingredient-name" type="text" value="${escapeHtml(ing.name)}" data-category="${escapeHtml(ing.category || "")}" placeholder="Ingredient name" autocomplete="off" />
+      <input class="ingredient-servings" type="number" min="0" value="${escapeHtml(ing.servings ?? 1)}" title="Quantity" />
+      <button class="icon-button" type="button" data-action="remove-ingredient" title="Remove">${icon("close")}</button>
+    </div>`;
+}
+
+function renderStepRow(step, index) {
+  return `
+    <div class="step-row">
+      <span class="step-num">${index + 1}</span>
+      <textarea class="step-text" rows="2">${escapeHtml(step)}</textarea>
+      <button class="icon-button" type="button" data-action="remove-step" title="Remove">${icon("close")}</button>
+    </div>`;
+}
+
 function renderRecipeEditForm(recipe) {
   return `
     <form class="recipe-edit-form" data-action="save-recipe-edit" data-import-id="${escapeHtml(recipe.id)}">
@@ -765,10 +783,20 @@ function renderRecipeEditForm(recipe) {
         <span>Notes</span>
         <textarea name="notes" rows="2" placeholder="Personal notes about this recipe">${escapeHtml(recipe.notes || "")}</textarea>
       </label>
-      <label class="field">
-        <span>Review text (re-extracts ingredients and steps)</span>
-        <textarea name="reviewText" rows="4" placeholder="Paste recipe caption or ingredient list to re-extract"></textarea>
-      </label>
+      <div class="field">
+        <span>Ingredients</span>
+        <div class="ingredients-editor">
+          ${(recipe.ingredients || []).map(renderIngredientRow).join("")}
+        </div>
+        <button class="add-row-button" type="button" data-action="add-ingredient">+ Add ingredient</button>
+      </div>
+      <div class="field">
+        <span>Steps</span>
+        <div class="steps-editor">
+          ${(recipe.steps || []).map(renderStepRow).join("")}
+        </div>
+        <button class="add-row-button" type="button" data-action="add-step">+ Add step</button>
+      </div>
       <div class="button-row">
         <button class="action-button" type="submit">${icon("check")} Save</button>
         <button class="secondary-button" type="button" data-action="toggle-recipe-edit" data-import-id="${escapeHtml(recipe.id)}">Cancel</button>
@@ -1241,42 +1269,6 @@ function importUrlsFromText(value) {
     });
 }
 
-async function correctRecipeImport(importId, text, title = "") {
-  const recipeImport = state.recipeImports.find((item) => item.id === importId);
-  if (!recipeImport) return;
-
-  state.lastAction = "Applying recipe correction";
-  persist();
-  render();
-
-  try {
-    const response = await fetch("/api/recipe-correction", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        creator: recipeImport.creator,
-        metadataTitle: recipeImport.title,
-        sourceType: recipeImport.sourceType,
-        text,
-        title: title || undefined,
-      }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || "Recipe correction failed");
-
-    const result = model.updateRecipeImport(state, importId, payload.recipe);
-    if (result.status !== "updated") state.lastAction = "Recipe correction failed";
-  } catch (error) {
-    state.lastAction =
-      window.location.protocol === "file:"
-        ? "Run npm run dev for recipe corrections"
-        : error.message || "Recipe correction failed";
-  }
-
-  persist();
-  render();
-}
-
 async function generateCoverForImport(importId) {
   const recipeImport = state.recipeImports.find((item) => item.id === importId);
   if (!recipeImport) return;
@@ -1498,6 +1490,38 @@ document.addEventListener("click", (event) => {
     persist();
     render();
   }
+  if (action === "add-ingredient") {
+    const editor = document.querySelector(".ingredients-editor");
+    if (editor) {
+      const row = document.createElement("div");
+      row.className = "ingredient-row";
+      row.innerHTML = `<input class="ingredient-name" type="text" data-category="" placeholder="Ingredient name" autocomplete="off" /><input class="ingredient-servings" type="number" min="0" value="1" title="Quantity" /><button class="icon-button" type="button" data-action="remove-ingredient" title="Remove">${icon("close")}</button>`;
+      editor.appendChild(row);
+      row.querySelector(".ingredient-name").focus();
+    }
+    return;
+  }
+  if (action === "remove-ingredient") {
+    actionTarget.closest(".ingredient-row")?.remove();
+    return;
+  }
+  if (action === "add-step") {
+    const editor = document.querySelector(".steps-editor");
+    if (editor) {
+      const num = editor.querySelectorAll(".step-row").length + 1;
+      const row = document.createElement("div");
+      row.className = "step-row";
+      row.innerHTML = `<span class="step-num">${num}</span><textarea class="step-text" rows="2"></textarea><button class="icon-button" type="button" data-action="remove-step" title="Remove">${icon("close")}</button>`;
+      editor.appendChild(row);
+      row.querySelector(".step-text").focus();
+    }
+    return;
+  }
+  if (action === "remove-step") {
+    actionTarget.closest(".step-row")?.remove();
+    document.querySelectorAll(".step-row .step-num").forEach((el, i) => { el.textContent = i + 1; });
+    return;
+  }
   if (action === "sync-recipes") {
     syncRecipesFromServer();
     return;
@@ -1624,26 +1648,34 @@ document.addEventListener("submit", async (event) => {
     event.preventDefault();
     const fd = new FormData(recipeEditForm);
     const importId = recipeEditForm.dataset.importId;
-    const reviewText = String(fd.get("reviewText") || "").trim();
-    if (reviewText) {
-      await correctRecipeImport(importId, reviewText, String(fd.get("title") || "").trim());
-      const updated = state.recipeImports.find((r) => r.id === importId);
-      if (updated) await patchRecipeToServer(importId, updated);
-    } else {
-      const recipeImport = state.recipeImports.find((r) => r.id === importId);
-      if (recipeImport) {
-        const title = String(fd.get("title") || "").trim();
-        if (title) recipeImport.title = title;
-        const time = parseInt(fd.get("time"), 10);
-        if (!isNaN(time) && time >= 0) recipeImport.time = time;
-        const servings = parseInt(fd.get("servings"), 10);
-        if (!isNaN(servings) && servings >= 1) recipeImport.servings = servings;
-        recipeImport.summary = String(fd.get("summary") || "").trim();
-        recipeImport.notes = String(fd.get("notes") || "").trim();
-        recipeImport.updatedAt = new Date().toISOString();
-        state.lastAction = `${recipeImport.title} updated`;
-        await patchRecipeToServer(importId, recipeImport);
-      }
+    const recipeImport = state.recipeImports.find((r) => r.id === importId);
+    if (recipeImport) {
+      const title = String(fd.get("title") || "").trim();
+      if (title) recipeImport.title = title;
+      const time = parseInt(fd.get("time"), 10);
+      if (!isNaN(time) && time >= 0) recipeImport.time = time;
+      const servings = parseInt(fd.get("servings"), 10);
+      if (!isNaN(servings) && servings >= 1) recipeImport.servings = servings;
+      recipeImport.summary = String(fd.get("summary") || "").trim();
+      recipeImport.notes = String(fd.get("notes") || "").trim();
+      const ingredients = [];
+      recipeEditForm.querySelectorAll(".ingredient-row").forEach((row) => {
+        const nameEl = row.querySelector(".ingredient-name");
+        const name = (nameEl?.value || "").trim();
+        if (!name) return;
+        const qty = parseInt(row.querySelector(".ingredient-servings")?.value || "1", 10);
+        ingredients.push({ name, category: nameEl?.dataset.category || "", servings: isNaN(qty) || qty < 0 ? 1 : qty });
+      });
+      recipeImport.ingredients = ingredients;
+      const steps = [];
+      recipeEditForm.querySelectorAll(".step-text").forEach((el) => {
+        const text = el.value.trim();
+        if (text) steps.push(text);
+      });
+      recipeImport.steps = steps;
+      recipeImport.updatedAt = new Date().toISOString();
+      state.lastAction = `${recipeImport.title} updated`;
+      await patchRecipeToServer(importId, recipeImport);
     }
     state.recipeEditId = null;
     persist();
