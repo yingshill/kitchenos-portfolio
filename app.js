@@ -634,10 +634,7 @@ function renderRecipeDetailPanel(recipe) {
             <button class="secondary-button" type="button" data-action="save-recipe-meal" data-import-id="${escapeHtml(recipe.id)}" ${recipe.savedAsMeal || !recipe.ingredients.length ? "disabled" : ""}>
               ${recipe.savedAsMeal ? "Saved as meal" : "Save as meal"}
             </button>
-            <button class="secondary-button" type="button" data-action="generate-cover" data-import-id="${escapeHtml(recipe.id)}">
-              Generate AI cover
-            </button>
-            <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipe.id)}" ${activeJob ? "disabled" : ""}>
+<button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipe.id)}" ${activeJob ? "disabled" : ""}>
               ${activeJob ? `${icon("refresh")} ${escapeHtml(activeJob.message || "Extracting…")}` : "Re-extract"}
             </button>
           </div>` : ""}
@@ -1199,34 +1196,6 @@ function importUrlsFromText(value) {
     });
 }
 
-async function generateCoverForImport(importId) {
-  const recipeImport = state.recipeImports.find((item) => item.id === importId);
-  if (!recipeImport) return;
-
-  state.lastAction = "Generating AI cover";
-  persist();
-  render();
-
-  try {
-    const response = await fetch("/api/cover-generation", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ recipe: recipeImport }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || "AI cover generation failed");
-    model.updateRecipeCover(state, importId, payload.cover);
-  } catch (error) {
-    const message =
-      window.location.protocol === "file:"
-        ? "Run npm run dev for AI cover generation"
-        : error.message || "AI cover generation failed";
-    model.updateRecipeCover(state, importId, { status: "error", message });
-  }
-
-  persist();
-  render();
-}
 
 async function syncRecipesFromServer() {
   state.lastAction = "Syncing recipe library";
@@ -1370,10 +1339,6 @@ document.addEventListener("click", (event) => {
     model.syncRecipeImportGaps(state, actionTarget.dataset.importId);
     persist();
     render();
-  }
-  if (action === "generate-cover") {
-    generateCoverForImport(actionTarget.dataset.importId);
-    return;
   }
   if (action === "reextract-recipe") {
     reextractRecipeImport(actionTarget.dataset.importId);
