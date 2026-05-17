@@ -24,7 +24,7 @@ const RECIPE_SCHEMA = {
       type: "array",
       items: {
         type: "string",
-        enum: ["soup", "noodles", "rice", "bread", "steamed", "stir-fry", "braise", "fried", "pastry", "dessert", "salad", "breakfast", "snack", "drink"],
+        enum: ["soup", "noodles", "rice", "bread", "steamed", "stir-fry", "braise", "fried", "pastry", "dessert", "salad", "breakfast", "snack"],
       },
     },
     ingredients: {
