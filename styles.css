@@ -1181,7 +1181,82 @@ button:disabled {
 
 .recipe-library {
   display: grid;
+  gap: 20px;
+}
+
+.lib-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lib-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.lib-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.lib-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lib-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lib-search-wrap .icon {
+  position: absolute;
+  left: 9px;
+  width: 15px;
+  height: 15px;
+  stroke: var(--muted);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.lib-search-wrap input[type="search"] {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 7px 10px 7px 32px;
+  font: inherit;
+  font-size: 0.875rem;
+  width: 200px;
+  min-height: 38px;
+}
+
+.lib-search-wrap input[type="search"]:focus {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px rgba(23,32,42,0.06);
 }
 
 .recipe-card-grid {

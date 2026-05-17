@@ -556,23 +556,18 @@ function renderRecipe() {
   );
   return `
     <div class="recipe-library">
-      <section class="panel" aria-labelledby="recipe-lib-heading">
-        <div class="panel-header">
-          <div>
-            <h2 id="recipe-lib-heading">Recipe library</h2>
-            <p class="status-note">${escapeHtml(state.recipeImports.length)} saved recipe${state.recipeImports.length === 1 ? "" : "s"}</p>
+      <div class="lib-bar">
+        <h2 class="lib-title">Recipe library <span class="lib-count">${escapeHtml(state.recipeImports.length)}</span></h2>
+        <div class="lib-controls">
+          <div class="lib-search-wrap">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="search" data-action="search-recipes" value="${escapeHtml(search)}" placeholder="Search recipes" aria-label="Search recipes" />
           </div>
-          <div class="toolbar">
-            <label class="field">
-              <span>Search</span>
-              <input type="search" data-action="search-recipes" value="${escapeHtml(search)}" placeholder="Recipe name" />
-            </label>
-            <button class="action-button" type="button" data-action="sync-recipes">
-              ${icon("refresh")} Sync
-            </button>
-          </div>
+          <button class="icon-button" type="button" data-action="sync-recipes" title="Sync from server" aria-label="Sync">
+            ${icon("refresh")}
+          </button>
         </div>
-      </section>
+      </div>
       ${
         filtered.length
           ? `<div class="recipe-card-grid">${filtered.map((r) => renderRecipeLibraryCard(r, selected?.id === r.id)).join("")}</div>`
