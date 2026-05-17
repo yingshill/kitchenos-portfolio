@@ -601,9 +601,6 @@ function renderRecipeLibraryCard(recipe, isSelected) {
 
 function renderRecipeDetailPanel(recipe) {
   const isEditing = state.recipeEditId === recipe.id;
-  const lastJob = (state.importJobs || []).find((job) => job.importId === recipe.id);
-  const activeJob = lastJob && ["pending", "extracting"].includes(lastJob.status) ? lastJob : null;
-  const failedJob = lastJob && lastJob.status === "failed" ? lastJob : null;
   const coverage = model.recipeImportCoverage(state, recipe);
   const missingCount = coverage.ingredients.filter((i) => i.missing > 0).length;
   const cover = recipe.cover || {};
@@ -634,11 +631,7 @@ function renderRecipeDetailPanel(recipe) {
             <button class="secondary-button" type="button" data-action="save-recipe-meal" data-import-id="${escapeHtml(recipe.id)}" ${recipe.savedAsMeal || !recipe.ingredients.length ? "disabled" : ""}>
               ${recipe.savedAsMeal ? "Saved as meal" : "Save as meal"}
             </button>
-<button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipe.id)}" ${activeJob ? "disabled" : ""}>
-              ${activeJob ? `${icon("refresh")} ${escapeHtml(activeJob.message || "Extracting…")}` : "Re-extract"}
-            </button>
           </div>` : ""}
-          ${failedJob ? `<div class="empty-state"><p>Re-extract failed: ${escapeHtml(failedJob.message || "Extraction error")}</p></div>` : ""}
           ${renderExtractionWarnings(recipe)}
           ${missingCount > 0 ? `<p class="status-note">${missingCount} ingredient${missingCount === 1 ? "" : "s"} missing from pantry.</p>` : ""}
         </div>
@@ -1163,26 +1156,6 @@ async function importRecipesFromText(value) {
   }
 }
 
-async function reextractRecipeImport(importId) {
-  const recipeImport = state.recipeImports.find((item) => item.id === importId);
-  if (!recipeImport) return;
-  const url = recipeImport.fetchUrl || recipeImport.sourceUrl;
-  const jobId = `reextract-${Date.now()}`;
-  state.importJobs = [
-    {
-      id: jobId,
-      importId,
-      url,
-      status: "pending",
-      message: "Queued re-extract",
-    },
-  ];
-  persist();
-  render();
-  await importRecipeFromUrl(url, { forceRefresh: true, jobId });
-  const updated = state.recipeImports.find((item) => item.id === importId);
-  if (updated) patchRecipeToServer(importId, updated);
-}
 
 function importUrlsFromText(value) {
   const matches = String(value || "").match(/https?:\/\/[^\s,]+/gi) || [];
@@ -1339,10 +1312,6 @@ document.addEventListener("click", (event) => {
     model.syncRecipeImportGaps(state, actionTarget.dataset.importId);
     persist();
     render();
-  }
-  if (action === "reextract-recipe") {
-    reextractRecipeImport(actionTarget.dataset.importId);
-    return;
   }
   if (action === "save-recipe-meal") {
     model.saveRecipeImportAsMeal(state, actionTarget.dataset.importId);
