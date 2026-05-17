@@ -648,7 +648,7 @@ function renderRecipeImportDetail(recipeImport) {
             <h3>${escapeHtml(recipeImport.title)}</h3>
             <p>${escapeHtml(recipeImport.summary || `Imported from ${recipeImport.sourceHost}.`)}</p>
           </div>
-          <span class="score-ring" aria-label="${escapeHtml(Math.round(coverage.coverage * 100))} percent pantry coverage">${escapeHtml(Math.round(coverage.coverage * 100))}</span>
+          <span class="score-ring" aria-label="${escapeHtml(recipeImport.confidence)} percent extraction confidence">${escapeHtml(recipeImport.confidence)}</span>
         </div>
         <div class="recipe-meta">
           <a class="source-link" href="${escapeHtml(recipeImport.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipeImport.sourceHost)}</a>
@@ -673,8 +673,8 @@ function renderRecipeImportDetail(recipeImport) {
           }
         </div>
         <div class="button-row">
-          <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipeImport.id)}">
-            Re-extract
+          <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipeImport.id)}" ${(state.importJobs || []).some((j) => j.importId === recipeImport.id && ["pending","extracting"].includes(j.status)) ? "disabled" : ""}>
+            ${(state.importJobs || []).some((j) => j.importId === recipeImport.id && ["pending","extracting"].includes(j.status)) ? `${icon("refresh")} Extracting…` : "Re-extract"}
           </button>
           <button class="secondary-button" type="button" data-action="generate-cover" data-import-id="${escapeHtml(recipeImport.id)}">
             Generate AI cover
@@ -737,11 +737,10 @@ function renderGeneratedCover(recipeImport) {
   }
   const statusLabels = {
     error: "Cover error",
-    "not-configured": "AI not configured",
-    "prompt-ready": "Prompt ready",
+    "not-configured": "AI cover off",
   };
-  const statusLabel = statusLabels[cover.status] || "Prompt ready";
-  const theme = cover.theme || "leaf";
+  const statusLabel = statusLabels[cover.status] || "";
+  const theme = cover.theme || recipeImport.coverTheme || "leaf";
   return `
     <figure class="generated-cover ${escapeHtml(theme)}" aria-label="KitchenOS generated cover for ${escapeHtml(recipeImport.title)}">
       <span class="cover-mark">${escapeHtml(statusLabel)}</span>
@@ -769,6 +768,15 @@ function ingredientColor(category) {
   return colors[category] || "var(--blue)";
 }
 
+function categoryEmoji(category) {
+  const emojis = { Produce: "🥬", Protein: "🥩", Dairy: "🥛", Grain: "🌾", Pantry: "🧂" };
+  return emojis[category] || "🍽️";
+}
+
+function servingsUnit(count) {
+  return count >= 3 ? "🍵" : "🥄";
+}
+
 function urlHost(value) {
   try {
     return new URL(value).hostname.replace(/^www\./, "");
@@ -779,13 +787,14 @@ function urlHost(value) {
 
 function renderRecipeIngredientRow(ingredient) {
   const percentage = Math.round(ingredient.covered * 100);
+  const unit = servingsUnit(ingredient.servings);
   return `
     <div class="meal-need-row">
-      <span>${escapeHtml(ingredient.name)}</span>
+      <span>${categoryEmoji(ingredient.category)} ${escapeHtml(ingredient.name)}</span>
       <span class="bar-track" aria-label="${escapeHtml(percentage)} percent available">
         <span class="bar-fill ${percentage < 50 ? "is-danger" : percentage < 100 ? "is-warn" : ""}" style="width: ${percentage}%"></span>
       </span>
-      <small class="row-meta">${escapeHtml(ingredient.available)}/${escapeHtml(ingredient.servings)} servings</small>
+      <small class="row-meta">${escapeHtml(ingredient.available)}${unit} / ${escapeHtml(ingredient.servings)}${unit}</small>
     </div>
   `;
 }
@@ -852,6 +861,7 @@ function renderRecipe() {
           </div>
         </div>
       </section>
+      ${renderImportJobs()}
       ${
         filtered.length
           ? `<div class="recipe-card-grid">${filtered.map((r) => renderRecipeLibraryCard(r, selected?.id === r.id)).join("")}</div>`
@@ -880,13 +890,16 @@ function renderRecipeLibraryCard(recipe, isSelected) {
           ${recipe.time > 0 ? `<span class="badge mustard">${escapeHtml(recipe.time)} min</span>` : ""}
         </div>
       </div>
-      <span class="score-ring score-ring-sm" aria-label="${escapeHtml(coveragePercent)} percent pantry coverage">${escapeHtml(coveragePercent)}</span>
+      <span class="score-ring score-ring-sm" aria-label="${escapeHtml(recipe.confidence)} percent extraction confidence">${escapeHtml(recipe.confidence)}</span>
     </article>
   `;
 }
 
 function renderRecipeDetailPanel(recipe) {
   const isEditing = state.recipeEditId === recipe.id;
+  const lastJob = (state.importJobs || []).find((job) => job.importId === recipe.id);
+  const activeJob = lastJob && ["pending", "extracting"].includes(lastJob.status) ? lastJob : null;
+  const failedJob = lastJob && lastJob.status === "failed" ? lastJob : null;
   const coverage = model.recipeImportCoverage(state, recipe);
   const missingCount = coverage.ingredients.filter((i) => i.missing > 0).length;
   const cover = recipe.cover || {};
@@ -923,10 +936,11 @@ function renderRecipeDetailPanel(recipe) {
             <button class="secondary-button" type="button" data-action="generate-cover" data-import-id="${escapeHtml(recipe.id)}">
               Generate AI cover
             </button>
-            <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipe.id)}">
-              Re-extract
+            <button class="secondary-button" type="button" data-action="reextract-recipe" data-import-id="${escapeHtml(recipe.id)}" ${activeJob ? "disabled" : ""}>
+              ${activeJob ? `${icon("refresh")} ${escapeHtml(activeJob.message || "Extracting…")}` : "Re-extract"}
             </button>
           </div>
+          ${failedJob ? `<div class="empty-state"><p>Re-extract failed: ${escapeHtml(failedJob.message || "Extraction error")}</p></div>` : ""}
           ${renderExtractionWarnings(recipe)}
           ${missingCount > 0 ? `<p class="status-note">${missingCount} ingredient${missingCount === 1 ? "" : "s"} missing from pantry.</p>` : ""}
         </div>
@@ -942,7 +956,7 @@ function renderRecipeReadView(recipe) {
     <div class="recipe-read-view">
       <div class="recipe-summary-row">
         <p class="recipe-summary-text">${escapeHtml(stripHashtags(recipe.summary || `Imported from ${recipe.sourceHost}.`))}</p>
-        <span class="score-ring" aria-label="${escapeHtml(coveragePercent)} percent pantry coverage">${escapeHtml(coveragePercent)}</span>
+        <span class="score-ring" aria-label="${escapeHtml(recipe.confidence)} percent extraction confidence">${escapeHtml(recipe.confidence)}</span>
       </div>
       ${
         coverage.ingredients.length
@@ -1441,7 +1455,11 @@ async function reextractRecipeImport(importId) {
       message: "Queued re-extract",
     },
   ];
+  persist();
+  render();
   await importRecipeFromUrl(url, { forceRefresh: true, jobId });
+  const updated = state.recipeImports.find((item) => item.id === importId);
+  if (updated) patchRecipeToServer(importId, updated);
 }
 
 function importUrlsFromText(value) {

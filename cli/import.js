@@ -72,7 +72,7 @@ async function importUrl(rawUrl, { notes = "", tags = [], forceRefresh = false }
 
   let extraction;
   try {
-    extraction = await extractRecipeFromUrl(normalizedUrl, { notes });
+    extraction = await extractRecipeFromUrl(rawUrl, { notes });
   } catch (error) {
     console.error(`  ✗ Extraction failed: ${error.message}`);
     return;
@@ -88,7 +88,7 @@ async function importUrl(rawUrl, { notes = "", tags = [], forceRefresh = false }
     ...(existing || {}),
     id,
     sourceUrl: normalizedUrl,
-    fetchUrl: extraction.fetchUrl || normalizedUrl,
+    fetchUrl: rawUrl,
     sourceHost: new URL(normalizedUrl).hostname.replace(/^www\./, ""),
     sourceType: extraction.sourceType || "article",
     title: extraction.title,

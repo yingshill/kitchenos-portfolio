@@ -1,5 +1,66 @@
 [
   {
+    "id": "url--1779010070853",
+    "sourceUrl": "https://www.rednote.com/explore/69e88898000000001a02d944",
+    "fetchUrl": "https://www.rednote.com/explore/69e88898000000001a02d944?xsec_token=AB57eA5y5HvR9hju1ciUGtOQpJOxUv-2FjPb4QnFm5SZw=&xsec_source=pc_user&source=web_user_page",
+    "sourceHost": "rednote.com",
+    "sourceType": "social",
+    "title": "红糖花卷",
+    "creator": "洺择",
+    "confidence": 46,
+    "time": 50,
+    "servings": 10,
+    "summary": "这款红糖花卷蓬松暄软，散发着浓郁的红糖香味，深受小朋友喜爱。",
+    "extractionStatus": "complete",
+    "warnings": [],
+    "cover": {
+      "status": "prompt-ready",
+      "theme": "mustard",
+      "prompt": "KitchenOS editorial food cover for 红糖花卷. Clean overhead composition, natural light, no text, no logos, no brand packaging."
+    },
+    "ingredients": [
+      {
+        "name": "红糖",
+        "category": "Pantry",
+        "servings": 200
+      },
+      {
+        "name": "水",
+        "category": "Pantry",
+        "servings": 250
+      },
+      {
+        "name": "耐高糖酵母",
+        "category": "Pantry",
+        "servings": 5
+      },
+      {
+        "name": "面粉",
+        "category": "Grain",
+        "servings": 300
+      },
+      {
+        "name": "干面粉",
+        "category": "Grain",
+        "servings": 5
+      }
+    ],
+    "steps": [
+      "将红糖用热水融化，放凉后加入耐高糖酵母。",
+      "将面粉与红糖水搅拌成絮状，揉成团。",
+      "放置在温暖环境中静置五分钟，然后在揉面垫上揉搓五分钟。",
+      "擀成长方形面饼，撒上红糖和少量干面粉。",
+      "将面饼整理好，分成约两厘米的面剂。",
+      "将两个面剂罗在一起，用筷子从中间压一下，扭动一下成为花卷形状。",
+      "将整理好的面团放在蒸锅上醒发，按压回弹后上锅蒸。",
+      "蒸好后，红糖花卷香气四溢。"
+    ],
+    "notes": "",
+    "tags": [],
+    "importedAt": "2026-05-17T09:27:50.853Z",
+    "updatedAt": "2026-05-17T09:27:50.874Z"
+  },
+  {
     "id": "url-peanut-soba-tofu",
     "sourceUrl": "https://video.example.com/weeknight-peanut-soba-tofu",
     "fetchUrl": "https://video.example.com/weeknight-peanut-soba-tofu",
@@ -20,11 +81,31 @@
       "prompt": "KitchenOS editorial food cover for Peanut Soba Tofu with soba noodles, tofu, broccoli, peanut sauce, limes. Clean overhead composition, natural light, no text, no logos, no brand packaging."
     },
     "ingredients": [
-      { "name": "Soba noodles", "category": "Grain", "servings": 2 },
-      { "name": "Tofu", "category": "Protein", "servings": 2 },
-      { "name": "Broccoli", "category": "Produce", "servings": 2 },
-      { "name": "Peanut sauce", "category": "Pantry", "servings": 2 },
-      { "name": "Limes", "category": "Produce", "servings": 1 }
+      {
+        "name": "Soba noodles",
+        "category": "Grain",
+        "servings": 2
+      },
+      {
+        "name": "Tofu",
+        "category": "Protein",
+        "servings": 2
+      },
+      {
+        "name": "Broccoli",
+        "category": "Produce",
+        "servings": 2
+      },
+      {
+        "name": "Peanut sauce",
+        "category": "Pantry",
+        "servings": 2
+      },
+      {
+        "name": "Limes",
+        "category": "Produce",
+        "servings": 1
+      }
     ],
     "steps": [
       "Boil soba noodles until just tender, then rinse under cool water to stop cooking.",
@@ -34,7 +115,11 @@
       "Toss noodles, tofu, broccoli, and sauce together, then finish with lime."
     ],
     "notes": "Seed recipe from demo data. Replace or add more via the CLI pipeline.",
-    "tags": ["quick", "weeknight", "noodles"],
+    "tags": [
+      "quick",
+      "weeknight",
+      "noodles"
+    ],
     "importedAt": "2026-05-16T00:00:00.000Z"
   }
 ]

@@ -38,12 +38,21 @@ async function extractTranscriptFromMedia(mediaUrl, options = {}) {
   }
 
   const fetchImpl = options.fetch || fetch;
-  const mediaResponse = await fetchImpl(url, {
-    headers: {
-      "referer": options.referer || "https://www.rednote.com/",
-      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
-    },
-  });
+  const mediaHeaders = {
+    "referer": options.referer || "https://www.rednote.com/",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+  };
+  const maxAttempts = 3;
+  let mediaResponse;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      mediaResponse = await fetchImpl(url, { headers: mediaHeaders });
+      if (mediaResponse.ok) break;
+    } catch (err) {
+      if (attempt === maxAttempts) throw new TranscriptExtractionError(`Video download failed after ${maxAttempts} attempts: ${err.message}`, { status: 502, code: "MEDIA_DOWNLOAD_FAILED" });
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
   if (!mediaResponse.ok) {
     throw new TranscriptExtractionError("Could not download public video stream for transcription.", {
       status: mediaResponse.status,

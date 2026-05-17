@@ -184,6 +184,26 @@ Architecture, stack, and design decisions logged at the time they were made. App
 
 ---
 
+## OpenAI as active chat provider with cost controls
+
+**Date:** 2026-05-16
+**Context:** User has an OpenAI API key with billing credits but no Anthropic key. ChatGPT Pro does not cover API usage — separate credits required.
+**Options considered:** Keep Claude as default (requires Anthropic key); switch to OpenAI; disable chat entirely.
+**Decision:** `CHAT_PROVIDER=openai` in `.env.local`. Chat capped at `max_tokens: 400`. Recipe structuring capped at `max_output_tokens: 1500`. Cover image generation disabled (`OPENAI_COVER_ENABLED=false`) to avoid $0.011/image cost — CSS cover themes used as fallback.
+**Tradeoffs:** Gained: working chat and Rednote transcription pipeline at minimal cost (~$0.0003/chat message). Given up: AI-generated cover images (can re-enable anytime). Image generation is the most expensive per-call feature and is purely cosmetic.
+
+---
+
+## Rednote CDN requires browser headers for server-side video download
+
+**Date:** 2026-05-16
+**Context:** Rednote video transcription was failing with "fetch failed" — the CDN at `sns-v8.rednotecdn.com` rejected bare Node.js fetch requests.
+**Options considered:** Skip transcription for Rednote; proxy through a browser; add browser-mimicking headers.
+**Decision:** `src/transcript-extractor.js` sends `Referer` and `User-Agent` headers on the media fetch. `src/recipe-extractor.js` passes `recipe.fetchUrl` (original URL with `xsec_token`) as the referer. This unblocks the CDN without any additional infrastructure.
+**Tradeoffs:** Gained: full Rednote pipeline — page fetch → video extraction → speech-to-text → AI structuring → complete recipe. Given up: nothing meaningful. Referer spoofing is standard for server-side media scraping.
+
+---
+
 ## Claude API as default chat provider with OpenAI fallback
 
 **Date:** 2026-05-16
