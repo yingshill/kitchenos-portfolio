@@ -1186,7 +1186,11 @@ async function syncRecipesFromServer() {
     // Full replace: server is source of truth. Preserve local cover images.
     state.recipeImports = serverRecipes
       .filter((r) => r.id)
-      .map((r) => ({ ...r, ...(existingById.get(r.id) ? { cover: existingById.get(r.id).cover } : {}) }));
+      .map((r) => {
+        const local = existingById.get(r.id);
+        const localCover = local?.cover?.imageDataUrl ? local.cover : null;
+        return { ...r, ...(localCover ? { cover: localCover } : {}) };
+      });
     state.lastAction = `Library synced — ${serverRecipes.length} recipe${serverRecipes.length === 1 ? "" : "s"}`;
   } catch {
     state.lastAction =
