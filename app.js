@@ -528,14 +528,8 @@ function categoryEmoji(category) {
   return emojis[category] || "🍽️";
 }
 
-function servingsUnit(count) {
-  return count >= 3 ? "🍵" : "🥄";
-}
-
-
 function renderRecipeIngredientRow(ingredient) {
   const percentage = Math.round(ingredient.covered * 100);
-  const unit = servingsUnit(ingredient.servings);
   return `
     <div class="meal-need-row">
       <span>${ingredient.emoji || categoryEmoji(ingredient.category)} ${escapeHtml(ingredient.name)}</span>
