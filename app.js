@@ -1241,20 +1241,11 @@ async function syncRecipesFromServer() {
     if (!response.ok) throw new Error("Sync failed");
     const serverRecipes = await response.json();
     const existingById = new Map(state.recipeImports.map((r) => [r.id, r]));
-    let added = 0;
-    let updated = 0;
-    for (const serverRecipe of serverRecipes) {
-      if (!serverRecipe.id) continue;
-      if (existingById.has(serverRecipe.id)) {
-        const idx = state.recipeImports.findIndex((r) => r.id === serverRecipe.id);
-        state.recipeImports[idx] = { ...existingById.get(serverRecipe.id), ...serverRecipe };
-        updated++;
-      } else {
-        state.recipeImports.unshift(serverRecipe);
-        added++;
-      }
-    }
-    state.lastAction = `Library synced — ${added} added, ${updated} updated`;
+    // Full replace: server is source of truth. Preserve local cover images.
+    state.recipeImports = serverRecipes
+      .filter((r) => r.id)
+      .map((r) => ({ ...r, ...(existingById.get(r.id) ? { cover: existingById.get(r.id).cover } : {}) }));
+    state.lastAction = `Library synced — ${serverRecipes.length} recipe${serverRecipes.length === 1 ? "" : "s"}`;
   } catch {
     state.lastAction =
       window.location.protocol === "file:"
