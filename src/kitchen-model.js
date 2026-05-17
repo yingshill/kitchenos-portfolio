@@ -412,13 +412,13 @@
       .join(", ");
     const summary = String(recipe.summary || "").replace(/\s+/g, " ").trim();
     return [
-      `Editorial watercolor food illustration of ${title}.`,
+      `Acrylic and marker food illustration of ${title}.`,
       ingredients ? `The dish features: ${ingredients}.` : "",
       summary ? `Dish context: ${summary}` : "",
-      "Style: detailed wet-on-wet watercolor, translucent layered washes, no ink outlines — paint defines all edges. Warm color temperature throughout: golden amber background, creamy whites, rich vivid food colors.",
-      "Composition: main dish large and centered in foreground on a white ceramic plate, one or two smaller complementary dishes receding into the background, creating a warm table-spread depth.",
-      "Lighting: soft diffused overhead light with crisp white specular highlights on the food surface. Hyper-detailed food texture — visible translucency, glossy sauces pooling, fine surface detail.",
-      "No text, no labels, no logos, no watermark, no hands, no utensils as the main subject, no dark harsh shadows, no photography.",
+      "Style: bold opaque acrylic paint with confident marker ink outlines defining every edge. Vivid saturated colors — bright greens, oranges, blues, purples. Flat graphic coverage, no translucency. Playful sketchbook zine aesthetic.",
+      "Composition: food centered and large in frame, served in a bowl or on a plate, viewed from a slight overhead angle. White or lightly tinted paper background. Small sparkle star doodles scattered around the food as decoration.",
+      "Texture: opaque paint strokes with visible brushwork, crisp white highlights on glossy surfaces, rich color contrast between food and background.",
+      "No text, no labels, no logos, no watermark, no hands, no photography.",
     ]
       .filter(Boolean)
       .join("\n");

@@ -2,7 +2,8 @@
 
 const { disabledResult, isAiFeatureEnabled } = require("./ai-config.js");
 
-const COVER_GUIDELINE_VERSION = "kitchenos-cover-v2";
+// Active style — switch COVER_GUIDELINE_VERSION and buildCoverPrompt assignment below to change.
+const COVER_GUIDELINE_VERSION = "kitchenos-cover-v1";
 const DEFAULT_IMAGE_MODEL = "gpt-image-1";
 
 class CoverGenerationError extends Error {
@@ -14,7 +15,30 @@ class CoverGenerationError extends Error {
   }
 }
 
-function buildCoverPrompt(recipe) {
+// — Style v1: acrylic marker sketchbook zine (Image 1) —
+function buildCoverPromptV1(recipe) {
+  const title = cleanText(recipe.title || "Recipe");
+  const ingredients = (Array.isArray(recipe.ingredients) ? recipe.ingredients : [])
+    .map((ingredient) => cleanText(ingredient.name))
+    .filter(Boolean)
+    .slice(0, 8);
+  const summary = cleanText(recipe.summary || "");
+
+  return [
+    `Acrylic and marker food illustration of ${title}.`,
+    ingredients.length ? `The dish features: ${ingredients.join(", ")}.` : "",
+    summary ? `Dish context: ${summary}` : "",
+    "Style: bold opaque acrylic paint with confident marker ink outlines defining every edge. Vivid saturated colors — bright greens, oranges, blues, purples. Flat graphic coverage, no translucency. Playful sketchbook zine aesthetic.",
+    "Composition: food centered and large in frame, served in a bowl or on a plate, viewed from a slight overhead angle. White or lightly tinted paper background. Small sparkle star doodles scattered around the food as decoration.",
+    "Texture: opaque paint strokes with visible brushwork, crisp white highlights on glossy surfaces, rich color contrast between food and background.",
+    "No text, no labels, no logos, no watermark, no hands, no photography.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+// — Style v2: editorial watercolor dim sum (Image 2) —
+function buildCoverPromptV2(recipe) {
   const title = cleanText(recipe.title || "Recipe");
   const ingredients = (Array.isArray(recipe.ingredients) ? recipe.ingredients : [])
     .map((ingredient) => cleanText(ingredient.name))
@@ -34,6 +58,9 @@ function buildCoverPrompt(recipe) {
     .filter(Boolean)
     .join("\n");
 }
+
+// Active prompt builder
+const buildCoverPrompt = buildCoverPromptV1;
 
 async function generateCover(recipe, options = {}) {
   const prompt = buildCoverPrompt(recipe);
