@@ -25,11 +25,12 @@ const RECIPE_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "category", "servings"],
+        required: ["name", "category", "servings", "emoji"],
         properties: {
           name: { type: "string" },
           category: { type: "string", enum: ["Produce", "Protein", "Grain", "Dairy", "Pantry"] },
           servings: { type: "number" },
+          emoji: { type: "string" },
         },
       },
     },
@@ -81,7 +82,7 @@ async function structureRecipeFromTranscript(input, options = {}) {
         {
           role: "system",
           content:
-            "Extract a recipe from cooking video transcript evidence. Use only the transcript and metadata. Do not invent missing steps. Return concise user-facing fields.",
+            "Extract a recipe from cooking video transcript evidence. Use only the transcript and metadata. Do not invent missing steps. Return concise user-facing fields. For each ingredient, assign a single emoji that best represents that specific ingredient.",
         },
         {
           role: "user",

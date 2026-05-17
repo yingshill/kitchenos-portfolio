@@ -538,7 +538,7 @@ function renderRecipeIngredientRow(ingredient) {
   const unit = servingsUnit(ingredient.servings);
   return `
     <div class="meal-need-row">
-      <span>${categoryEmoji(ingredient.category)} ${escapeHtml(ingredient.name)}</span>
+      <span>${ingredient.emoji || categoryEmoji(ingredient.category)} ${escapeHtml(ingredient.name)}</span>
       <span class="bar-track" aria-label="${escapeHtml(percentage)} percent available">
         <span class="bar-fill ${percentage < 50 ? "is-danger" : percentage < 100 ? "is-warn" : ""}" style="width: ${percentage}%"></span>
       </span>
