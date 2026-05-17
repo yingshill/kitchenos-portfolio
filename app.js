@@ -557,11 +557,11 @@ function renderRecipe() {
   return `
     <div class="recipe-library">
       <div class="lib-bar">
-        <h2 class="lib-title">Recipe library <span class="lib-count">${escapeHtml(state.recipeImports.length)}</span></h2>
+        <span class="lib-meta">${escapeHtml(state.recipeImports.length)} recipe${state.recipeImports.length === 1 ? "" : "s"}</span>
         <div class="lib-controls">
           <div class="lib-search-wrap">
             <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
-            <input type="search" data-action="search-recipes" value="${escapeHtml(search)}" placeholder="Search recipes" aria-label="Search recipes" />
+            <input type="search" data-action="search-recipes" value="${escapeHtml(search)}" placeholder="Search" aria-label="Search recipes" />
           </div>
           <button class="icon-button" type="button" data-action="sync-recipes" title="Sync from server" aria-label="Sync">
             ${icon("refresh")}
