@@ -511,59 +511,6 @@ function renderTimeline() {
   `;
 }
 
-function renderImportJobs() {
-  const jobs = state.importJobs || [];
-  if (!jobs.length) return "";
-  const completed = jobs.filter((job) => ["imported", "updated", "duplicate", "needs-review"].includes(job.status)).length;
-  const failed = jobs.filter((job) => job.status === "failed").length;
-  return `
-    <div class="import-queue" aria-label="URL import run status">
-      <div class="import-queue-header">
-        <strong>Import run</strong>
-        <span>${escapeHtml(completed)}/${escapeHtml(jobs.length)} processed${failed ? ` · ${escapeHtml(failed)} failed` : ""}</span>
-      </div>
-      <div class="import-job-list">
-        ${jobs
-          .map(
-            (job) => `
-              <div class="import-job-row">
-                <span class="badge ${escapeHtml(importJobBadge(job.status))}">${escapeHtml(importJobLabel(job.status))}</span>
-                <span class="import-job-url">${escapeHtml(urlHost(job.url))}</span>
-                <span class="import-job-message">${escapeHtml(job.message || "")}</span>
-              </div>
-            `,
-          )
-          .join("")}
-      </div>
-    </div>
-  `;
-}
-
-function importJobBadge(status) {
-  const map = {
-    duplicate: "blue",
-    extracting: "mustard",
-    failed: "tomato",
-    imported: "leaf",
-    pending: "plum",
-    updated: "leaf",
-    "needs-review": "mustard",
-  };
-  return map[status] || "blue";
-}
-
-function importJobLabel(status) {
-  const map = {
-    duplicate: "duplicate",
-    extracting: "extracting",
-    failed: "failed",
-    imported: "imported",
-    pending: "pending",
-    updated: "updated",
-    "needs-review": "needs review",
-  };
-  return map[status] || status || "queued";
-}
 
 
 function renderExtractionWarnings(recipeImport) {
@@ -585,13 +532,6 @@ function servingsUnit(count) {
   return count >= 3 ? "🍵" : "🥄";
 }
 
-function urlHost(value) {
-  try {
-    return new URL(value).hostname.replace(/^www\./, "");
-  } catch {
-    return value || "URL";
-  }
-}
 
 function renderRecipeIngredientRow(ingredient) {
   const percentage = Math.round(ingredient.covered * 100);
@@ -620,7 +560,7 @@ function renderRecipe() {
         <div class="panel-header">
           <div>
             <h2 id="recipe-lib-heading">Recipe library</h2>
-            <p class="status-note">${escapeHtml(state.recipeImports.length)} saved recipe${state.recipeImports.length === 1 ? "" : "s"} · Import more with <code>node cli/import.js &lt;url&gt;</code></p>
+            <p class="status-note">${escapeHtml(state.recipeImports.length)} saved recipe${state.recipeImports.length === 1 ? "" : "s"}</p>
           </div>
           <div class="toolbar">
             <label class="field">
@@ -633,11 +573,10 @@ function renderRecipe() {
           </div>
         </div>
       </section>
-      ${renderImportJobs()}
       ${
         filtered.length
           ? `<div class="recipe-card-grid">${filtered.map((r) => renderRecipeLibraryCard(r, selected?.id === r.id)).join("")}</div>`
-          : `<div class="empty-state"><p>${search ? "No recipes match your search." : "No recipes in your library yet."}</p>${!search ? `<p>Run <code>node cli/import.js &lt;url&gt;</code> to import your first recipe, or click Sync to load from the server.</p>` : ""}</div>`
+          : `<div class="empty-state"><p>${search ? "No recipes match your search." : "No recipes yet."}</p></div>`
       }
       ${selected ? renderRecipeDetailPanel(selected) : ""}
     </div>
