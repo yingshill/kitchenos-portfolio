@@ -2,6 +2,7 @@
 
 const { extractTranscriptFromMedia } = require("./transcript-extractor.js");
 const { structureRecipeFromTranscript } = require("./recipe-structurer.js");
+const { rewriteRecipeSummary } = require("./summary-rewriter.js");
 
 const TRACKING_PARAMS = new Set([
   "fbclid",
@@ -123,8 +124,7 @@ async function extractRecipeFromUrl(value, options = {}) {
 
   if (options.html) {
     const recipe = await enhanceRecipeWithTranscript(extractRecipeFromHtml(fetchUrl.href, options.html, options), options);
-    if (recipe) recipe.fetchUrl = fetchUrl.href;
-    return recipe;
+    return finalizeExtraction(recipe, fetchUrl, options);
   }
 
   const attempts = options.attempts || (isRednoteUrl(fetchUrl) ? 5 : 1);
@@ -134,8 +134,7 @@ async function extractRecipeFromUrl(value, options = {}) {
     const recipe = extractRecipeFromHtml(fetchUrl.href, html, options);
     if (!isWeakRednoteShell(fetchUrl, recipe)) {
       const enhanced = await enhanceRecipeWithTranscript(recipe, options);
-      if (enhanced) enhanced.fetchUrl = fetchUrl.href;
-      return enhanced;
+      return finalizeExtraction(enhanced, fetchUrl, options);
     }
     lastRecipe = recipe;
     if (attempt < attempts) await sleep(250 * attempt);
@@ -147,8 +146,19 @@ async function extractRecipeFromUrl(value, options = {}) {
     });
   }
   const enhanced = await enhanceRecipeWithTranscript(lastRecipe, options);
-  if (enhanced) enhanced.fetchUrl = fetchUrl.href;
-  return enhanced;
+  return finalizeExtraction(enhanced, fetchUrl, options);
+}
+
+async function finalizeExtraction(recipe, fetchUrl, options) {
+  if (!recipe) return recipe;
+  recipe.fetchUrl = fetchUrl.href;
+  if (recipe.ingredients?.length && recipe.steps?.length) {
+    const rewrite = await rewriteRecipeSummary(recipe, options).catch(() => null);
+    if (rewrite?.status === "complete" && rewrite.summary) {
+      recipe.summary = rewrite.summary;
+    }
+  }
+  return recipe;
 }
 
 async function enhanceRecipeWithTranscript(recipe, options = {}) {
