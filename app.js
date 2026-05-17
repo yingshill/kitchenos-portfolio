@@ -616,7 +616,6 @@ function renderRecipeDetailPanel(recipe) {
         <div class="recipe-modal-header">
           <div class="recipe-modal-title">
             <strong>${escapeHtml(stripHashtags(recipe.title))}</strong>
-            <span class="modal-source-line"><a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceHost)}</a></span>
           </div>
           <div class="row-actions">
             ${!isEditing ? `<button class="icon-button" type="button" data-action="toggle-recipe-edit" data-import-id="${escapeHtml(recipe.id)}" title="Edit recipe" aria-label="Edit recipe">${icon("edit")}</button>` : ""}

@@ -1147,10 +1147,6 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
-.modal-source-line {
-  display: flex;
-  align-items: center;
-}
 
 .recipe-modal-cover-banner {
   width: 100%;
