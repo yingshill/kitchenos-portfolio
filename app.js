@@ -615,8 +615,8 @@ function renderRecipeDetailPanel(recipe) {
       <div class="recipe-modal" role="document">
         <div class="recipe-modal-header">
           <div class="recipe-modal-title">
-            <span class="eyebrow">Recipe</span>
             <strong>${escapeHtml(stripHashtags(recipe.title))}</strong>
+            <span class="modal-source-line"><a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceHost)}</a></span>
           </div>
           <div class="row-actions">
             ${!isEditing ? `<button class="icon-button" type="button" data-action="toggle-recipe-edit" data-import-id="${escapeHtml(recipe.id)}" title="Edit recipe" aria-label="Edit recipe">${icon("edit")}</button>` : ""}
@@ -627,7 +627,7 @@ function renderRecipeDetailPanel(recipe) {
         </div>
         ${coverBanner}
         <div class="recipe-modal-body">
-          ${isEditing ? renderRecipeEditForm(recipe) : renderRecipeReadView(recipe)}
+          ${isEditing ? renderRecipeEditForm(recipe) : renderRecipeReadView(recipe, coverage)}
           ${!isEditing ? `<div class="button-row">
             <button class="secondary-button" type="button" data-action="sync-recipe-gaps" data-import-id="${escapeHtml(recipe.id)}" ${recipe.ingredients.length ? "" : "disabled"}>
               Add missing to grocery
@@ -651,25 +651,22 @@ function renderRecipeDetailPanel(recipe) {
   `;
 }
 
-function renderRecipeReadView(recipe) {
-  const coverage = model.recipeImportCoverage(state, recipe);
+function renderRecipeReadView(recipe, coverage) {
+  if (!coverage) coverage = model.recipeImportCoverage(state, recipe);
   return `
     <div class="recipe-read-view">
-      <div class="recipe-summary-row">
-        <p class="recipe-summary-text">${escapeHtml(stripHashtags(recipe.summary || `Imported from ${recipe.sourceHost}.`))}</p>
-        <span class="score-ring" aria-label="${escapeHtml(recipe.confidence)} percent extraction confidence">${escapeHtml(recipe.confidence)}</span>
-      </div>
+      <p class="recipe-summary-text">${escapeHtml(stripHashtags(recipe.summary || `Imported from ${recipe.sourceHost}.`))}</p>
       ${
         coverage.ingredients.length
-          ? `<div><p class="eyebrow" style="margin:0 0 8px">Ingredients</p><div class="need-list">${coverage.ingredients.map(renderRecipeIngredientRow).join("")}</div></div>`
+          ? `<div class="recipe-section"><p class="eyebrow recipe-section-label">Ingredients</p><div class="need-list">${coverage.ingredients.map(renderRecipeIngredientRow).join("")}</div></div>`
           : ""
       }
       ${
         recipe.steps.length
-          ? `<div><p class="eyebrow" style="margin:0 0 8px">Steps</p><ol class="step-list">${recipe.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol></div>`
+          ? `<div class="recipe-section"><p class="eyebrow recipe-section-label">Steps</p><ol class="step-list">${recipe.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol></div>`
           : ""
       }
-      ${recipe.notes ? `<div><p class="eyebrow" style="margin:0 0 4px">Notes</p><p class="muted">${escapeHtml(recipe.notes)}</p></div>` : ""}
+      ${recipe.notes ? `<div class="recipe-section"><p class="eyebrow recipe-section-label">Notes</p><p class="muted">${escapeHtml(recipe.notes)}</p></div>` : ""}
     </div>
   `;
 }
