@@ -153,7 +153,39 @@ async function extractRecipeFromUrl(value, options = {}) {
 async function finalizeExtraction(recipe, fetchUrl, options) {
   if (!recipe) return recipe;
   recipe.fetchUrl = fetchUrl.href;
-  if (recipe.ingredients?.length && recipe.steps?.length) {
+
+  // If extraction quality is low, try re-structuring from the step text blob.
+  const thinIngredients = (recipe.ingredients?.length || 0) <= 2;
+  const thinSteps = (recipe.steps?.length || 0) <= 1;
+  const stepText = (recipe.steps || []).join("\n");
+  const looksLikeBlob = stepText.length > 80 && /\d/.test(stepText);
+  if ((thinIngredients || thinSteps) && looksLikeBlob) {
+    const structured = await structureRecipeFromTranscript(
+      { transcript: stepText, metadata: { title: recipe.title, creator: recipe.creator, summary: recipe.summary, sourceType: recipe.sourceType } },
+      options.structurer || options,
+    ).catch(() => null);
+    if (structured?.status === "complete" && structured.recipe) {
+      const s = structured.recipe;
+      const ingredients = Array.isArray(s.ingredients) && s.ingredients.length > recipe.ingredients?.length ? s.ingredients : recipe.ingredients;
+      const steps = Array.isArray(s.steps) && s.steps.length > 0 ? s.steps.filter(Boolean) : recipe.steps;
+      recipe.ingredients = uniqueIngredients(
+        ingredients.map((i) => ({
+          name: cleanText(i.name),
+          category: i.category || categoryForIngredient(i.name),
+          servings: Math.max(1, Math.round(Number(i.servings) || 1)),
+          ...(i.quantity ? { quantity: String(i.quantity).trim() } : {}),
+          ...(i.emoji ? { emoji: i.emoji } : {}),
+        })).filter((i) => i.name),
+      );
+      recipe.steps = steps;
+      if (Array.isArray(s.tags) && s.tags.length) recipe.tags = s.tags;
+      if (s.time) recipe.time = s.time;
+      if (s.servings) recipe.servings = s.servings;
+      if (recipe.ingredients.length && recipe.steps.length) recipe.extractionStatus = "complete";
+    }
+  }
+
+  if (recipe.ingredients?.length) {
     const [rewrite] = await Promise.all([
       rewriteRecipeSummary(recipe, options).catch(() => null),
       enrichRecipeMeta(recipe, options).catch(() => null),
