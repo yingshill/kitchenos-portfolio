@@ -70,7 +70,7 @@ const viewMeta = {
   },
   recipe: {
     eyebrow: "Recipe library",
-    title: "Your saved recipes from web, video, and social sources",
+    title: "在吃苦和吃亏中，我选择"吃饭"",
   },
   takeouts: {
     eyebrow: "Takeout favorites",
