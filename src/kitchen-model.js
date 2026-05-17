@@ -536,10 +536,12 @@
     recipeImport.confidence = recipe.confidence;
     recipeImport.time = recipe.time;
     recipeImport.servings = recipe.servings;
+    const prevCover = recipeImport.cover || {};
     recipeImport.cover = {
       status: "prompt-ready",
       theme: recipe.coverTheme,
       prompt: createCoverPrompt(recipe),
+      ...(prevCover.imageDataUrl ? { imageDataUrl: prevCover.imageDataUrl, status: prevCover.status } : {}),
     };
     recipeImport.ingredients = recipe.ingredients;
     recipeImport.steps = recipe.steps;
