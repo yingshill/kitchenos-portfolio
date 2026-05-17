@@ -643,7 +643,6 @@ function renderRecipeDetailPanel(recipe) {
               ${recipe.savedAsMeal ? "Saved as meal" : "Save as meal"}
             </button>
           </div>` : ""}
-          ${renderExtractionWarnings(recipe)}
           ${missingCount > 0 ? `<p class="status-note">${missingCount} ingredient${missingCount === 1 ? "" : "s"} missing from pantry.</p>` : ""}
         </div>
       </div>

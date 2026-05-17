@@ -11,7 +11,7 @@ const RECIPES_PATH = path.join(ROOT, "recipes.json");
 loadEnvFiles(ROOT);
 
 const { extractRecipeFromUrl } = require("../src/recipe-extractor.js");
-const { buildCoverPrompt } = require("../src/cover-generator.js");
+const { buildCoverPrompt, generateCover, COVER_GUIDELINE_VERSION } = require("../src/cover-generator.js");
 
 async function readRecipes() {
   try {
@@ -100,7 +100,7 @@ async function importUrl(rawUrl, { notes = "", tags = [], forceRefresh = false }
     summary: extraction.summary || "",
     extractionStatus: extraction.extractionStatus || "complete",
     warnings: extraction.warnings || [],
-    cover: {
+    cover: existing?.cover || {
       status: "prompt-ready",
       theme: extraction.coverTheme || "leaf",
       prompt: buildCoverPrompt({ title: extraction.title, ingredients: extraction.ingredients || [], summary: extraction.summary || "" }),
@@ -108,7 +108,7 @@ async function importUrl(rawUrl, { notes = "", tags = [], forceRefresh = false }
     ingredients: extraction.ingredients || [],
     steps: extraction.steps || [],
     notes: notes || existing?.notes || "",
-    tags: tags.length ? tags : existing?.tags || [],
+    tags: tags.length ? tags : (extraction.tags?.length ? extraction.tags : existing?.tags || []),
     importedAt: existing?.importedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -123,6 +123,31 @@ async function importUrl(rawUrl, { notes = "", tags = [], forceRefresh = false }
   }
 
   await writeRecipes(recipes);
+
+  if (!recipe.cover?.imageDataUrl) {
+    console.log(`  Generating cover...`);
+    try {
+      const coverResult = await generateCover(recipe);
+      if (coverResult.status === "ai-generated") {
+        recipe.cover = {
+          status: "ai-generated",
+          generatedAt: coverResult.generatedAt,
+          guidelineVersion: coverResult.guidelineVersion,
+          imageDataUrl: coverResult.imageDataUrl,
+          model: coverResult.model,
+          prompt: coverResult.prompt,
+        };
+        const saved = await readRecipes();
+        const idx = saved.findIndex((r) => r.id === recipe.id);
+        if (idx !== -1) { saved[idx] = recipe; await writeRecipes(saved); }
+        console.log(`  ✓ Cover generated`);
+      } else {
+        console.log(`  ✗ Cover skipped: ${coverResult.message || coverResult.status}`);
+      }
+    } catch (e) {
+      console.log(`  ✗ Cover failed: ${e.message}`);
+    }
+  }
 }
 
 // Minimal YAML parser for the queue format — no external dep required
