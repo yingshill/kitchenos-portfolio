@@ -2,7 +2,7 @@
 
 const { disabledResult, isAiFeatureEnabled } = require("./ai-config.js");
 
-const DEFAULT_RECIPE_MODEL = "gpt-5-mini";
+const DEFAULT_RECIPE_MODEL = "gpt-4o-mini";
 
 class RecipeStructuringError extends Error {
   constructor(message, { status = 500, code = "RECIPE_STRUCTURING_ERROR" } = {}) {
@@ -76,6 +76,7 @@ async function structureRecipeFromTranscript(input, options = {}) {
     },
     body: JSON.stringify({
       model,
+      max_output_tokens: 1500,
       input: [
         {
           role: "system",

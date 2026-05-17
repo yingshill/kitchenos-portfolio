@@ -156,7 +156,10 @@ async function enhanceRecipeWithTranscript(recipe, options = {}) {
 
   let transcript;
   try {
-    transcript = await extractTranscriptFromMedia(recipe.mediaUrl, options.transcript || options);
+    transcript = await extractTranscriptFromMedia(recipe.mediaUrl, {
+      ...(options.transcript || options),
+      referer: recipe.fetchUrl || recipe.sourceUrl,
+    });
   } catch (error) {
     recipe.warnings = [...recipe.warnings, error.message || "Speech-to-text transcription failed."];
     return recipe;

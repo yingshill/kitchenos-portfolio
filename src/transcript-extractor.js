@@ -38,7 +38,12 @@ async function extractTranscriptFromMedia(mediaUrl, options = {}) {
   }
 
   const fetchImpl = options.fetch || fetch;
-  const mediaResponse = await fetchImpl(url);
+  const mediaResponse = await fetchImpl(url, {
+    headers: {
+      "referer": options.referer || "https://www.rednote.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+    },
+  });
   if (!mediaResponse.ok) {
     throw new TranscriptExtractionError("Could not download public video stream for transcription.", {
       status: mediaResponse.status,

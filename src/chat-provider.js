@@ -71,6 +71,7 @@ async function chatOpenAI(systemPrompt, messages) {
     },
     body: JSON.stringify({
       model,
+      max_tokens: 400,
       messages: [{ role: "system", content: systemPrompt }, ...messages],
     }),
   });
