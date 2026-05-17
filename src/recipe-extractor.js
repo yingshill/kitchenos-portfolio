@@ -255,6 +255,7 @@ async function structureTranscriptRecipe(recipe, transcript, options = {}) {
         .filter((ingredient) => ingredient.name),
     ),
     steps,
+    tags: Array.isArray(structuredRecipe.tags) ? structuredRecipe.tags.filter(Boolean) : recipe.tags || [],
     warnings: Array.isArray(structuredRecipe.warnings) ? structuredRecipe.warnings.map(cleanText).filter(Boolean) : [],
     extractionStatus: ingredients.length && steps.length ? "complete" : "needs-review",
     aiExtraction: {

@@ -104,7 +104,7 @@ const eyebrow = document.querySelector("#view-eyebrow");
 const sidebarStatus = document.querySelector("#sidebar-status");
 
 function loadState() {
-  const defaults = { takeouts: [], chatHistory: [], chatLoading: false, recipeSearch: "", recipeEditId: null };
+  const defaults = { takeouts: [], chatHistory: [], chatLoading: false, recipeSearch: "", recipeTagFilter: "", recipeEditId: null };
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const base = { ...clone(seedState), ...defaults };
@@ -550,10 +550,20 @@ function renderRecipeIngredientRow(ingredient) {
 
 function renderRecipe() {
   const search = state.recipeSearch || "";
+  const activeTag = state.recipeTagFilter || "";
   const selected = selectedRecipeImport();
-  const filtered = state.recipeImports.filter(
-    (item) => !search || item.title.toLowerCase().includes(search.toLowerCase()),
-  );
+  const allTags = [...new Set(state.recipeImports.flatMap((r) => r.tags || []))].sort();
+  const filtered = state.recipeImports.filter((item) => {
+    if (search && !item.title.toLowerCase().includes(search.toLowerCase())) return false;
+    if (activeTag && !(item.tags || []).includes(activeTag)) return false;
+    return true;
+  });
+  const tagRow = allTags.length
+    ? `<div class="tag-filter-row">
+        <button class="tag-chip${!activeTag ? " is-active" : ""}" type="button" data-action="filter-tag" data-tag="">All</button>
+        ${allTags.map((t) => `<button class="tag-chip${activeTag === t ? " is-active" : ""}" type="button" data-action="filter-tag" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join("")}
+       </div>`
+    : "";
   return `
     <div class="recipe-library">
       <div class="lib-bar">
@@ -568,10 +578,11 @@ function renderRecipe() {
           </button>
         </div>
       </div>
+      ${tagRow}
       ${
         filtered.length
           ? `<div class="recipe-card-grid">${filtered.map((r) => renderRecipeLibraryCard(r, selected?.id === r.id)).join("")}</div>`
-          : `<div class="empty-state"><p>${search ? "No recipes match your search." : "No recipes yet."}</p></div>`
+          : `<div class="empty-state"><p>${search || activeTag ? "No recipes match." : "No recipes yet."}</p></div>`
       }
       ${selected ? renderRecipeDetailPanel(selected) : ""}
     </div>
@@ -590,8 +601,8 @@ function renderRecipeLibraryCard(recipe, isSelected) {
         <strong class="recipe-card-title">${escapeHtml(stripHashtags(recipe.title))}</strong>
         <div class="recipe-meta">
           <a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceHost)}</a>
-          <span class="badge blue">${escapeHtml(recipe.sourceType)}</span>
           ${recipe.time > 0 ? `<span class="badge mustard">${escapeHtml(recipe.time)} min</span>` : ""}
+          ${(recipe.tags || []).map((t) => `<span class="badge">${escapeHtml(t)}</span>`).join("")}
         </div>
       </div>
       <span class="score-ring score-ring-sm" aria-label="${escapeHtml(recipe.confidence)} percent extraction confidence">${escapeHtml(recipe.confidence)}</span>
@@ -1423,6 +1434,9 @@ document.addEventListener("change", (event) => {
   }
   if (action === "filter-category") {
     state.category = target.value;
+  }
+  if (action === "filter-tag") {
+    state.recipeTagFilter = actionTarget.dataset.tag || "";
   }
   if (action === "toggle-grocery") {
     model.toggleGroceryItem(state, target.dataset.groceryId, target.checked);

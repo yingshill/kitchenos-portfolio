@@ -16,10 +16,17 @@ class RecipeStructuringError extends Error {
 const RECIPE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "summary", "ingredients", "steps", "time", "servings", "confidence", "warnings"],
+  required: ["title", "summary", "tags", "ingredients", "steps", "time", "servings", "confidence", "warnings"],
   properties: {
     title: { type: "string" },
     summary: { type: "string" },
+    tags: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: ["soup", "noodles", "rice", "bread", "steamed", "stir-fry", "braise", "fried", "pastry", "dessert", "salad", "breakfast", "snack", "drink"],
+      },
+    },
     ingredients: {
       type: "array",
       items: {
@@ -82,7 +89,7 @@ async function structureRecipeFromTranscript(input, options = {}) {
         {
           role: "system",
           content:
-            "Extract a recipe from cooking video transcript evidence. Use only the transcript and metadata. Do not invent missing steps. Return concise user-facing fields. For each ingredient, assign a single emoji that best represents that specific ingredient.",
+            "Extract a recipe from cooking video transcript evidence. Use only the transcript and metadata. Do not invent missing steps. Return concise user-facing fields. For each ingredient, assign a single emoji that best represents that specific ingredient. For tags, assign 1–3 that best describe the dish type and cooking method.",
         },
         {
           role: "user",
