@@ -647,15 +647,15 @@ function renderRecipeReadView(recipe, coverage) {
       <p class="recipe-summary-text">${escapeHtml(stripHashtags(recipe.summary || `Imported from ${recipe.sourceHost}.`))}</p>
       ${
         coverage.ingredients.length
-          ? `<div class="recipe-section"><p class="eyebrow recipe-section-label">Ingredients</p><div class="need-list">${coverage.ingredients.map(renderRecipeIngredientRow).join("")}</div></div>`
+          ? `<div class="recipe-section"><p class="recipe-section-label">Ingredients</p><div class="need-list">${coverage.ingredients.map(renderRecipeIngredientRow).join("")}</div></div>`
           : ""
       }
       ${
         recipe.steps.length
-          ? `<div class="recipe-section"><p class="eyebrow recipe-section-label">Steps</p><ol class="step-list">${recipe.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol></div>`
+          ? `<div class="recipe-section"><p class="recipe-section-label">Steps</p><ol class="step-list">${recipe.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol></div>`
           : ""
       }
-      ${recipe.notes ? `<div class="recipe-section"><p class="eyebrow recipe-section-label">Notes</p><p class="muted">${escapeHtml(recipe.notes)}</p></div>` : ""}
+      ${recipe.notes ? `<div class="recipe-section"><p class="recipe-section-label">Notes</p><p class="muted">${escapeHtml(recipe.notes)}</p></div>` : ""}
     </div>
   `;
 }
