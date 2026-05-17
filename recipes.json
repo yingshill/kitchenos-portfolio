@@ -1,5 +1,83 @@
 [
   {
+    "id": "url--1779016510991",
+    "sourceUrl": "https://www.rednote.com/explore/69f85f6e000000003701d6b2",
+    "fetchUrl": "https://www.rednote.com/explore/69f85f6e000000003701d6b2?xsec_token=ABfGIakcCm0VpZ5GsWgLTeuDng1qmTVBbolztI6XzdM1o=&xsec_source=pc_user&source=web_user_page",
+    "sourceHost": "rednote.com",
+    "sourceType": "social",
+    "title": "猪心莲子汤",
+    "creator": "广东娟姐",
+    "confidence": 38,
+    "time": 60,
+    "servings": 2,
+    "summary": "这道汤由猪心、莲子和多种健康食材制成，适合改善睡眠品质，是一道经典广东靓汤。",
+    "extractionStatus": "complete",
+    "warnings": [],
+    "cover": {
+      "status": "prompt-ready",
+      "theme": "leaf",
+      "prompt": "KitchenOS editorial food cover for 猪心莲子汤. Clean overhead composition, natural light, no text, no logos, no brand packaging."
+    },
+    "ingredients": [
+      {
+        "name": "猪心",
+        "category": "Protein",
+        "servings": 1
+      },
+      {
+        "name": "莲子",
+        "category": "Produce",
+        "servings": 100
+      },
+      {
+        "name": "百合",
+        "category": "Produce",
+        "servings": 50
+      },
+      {
+        "name": "桂圆",
+        "category": "Produce",
+        "servings": 20
+      },
+      {
+        "name": "麦冬",
+        "category": "Produce",
+        "servings": 30
+      },
+      {
+        "name": "去核红枣",
+        "category": "Produce",
+        "servings": 10
+      },
+      {
+        "name": "清水",
+        "category": "Pantry",
+        "servings": 1000
+      },
+      {
+        "name": "枸杞",
+        "category": "Produce",
+        "servings": 20
+      },
+      {
+        "name": "盐",
+        "category": "Pantry",
+        "servings": 5
+      }
+    ],
+    "steps": [
+      "将猪心洗净，切块备用。",
+      "将莲子、百合、桂圆、麦冬、去核红枣洗净备用。",
+      "在锅中加入适量清水，放入所有准备好的食材。",
+      "炖煮一个小时。",
+      "出锅前加入枸杞和盐调味即可。"
+    ],
+    "notes": "",
+    "tags": [],
+    "importedAt": "2026-05-17T11:15:10.991Z",
+    "updatedAt": "2026-05-17T11:15:10.992Z"
+  },
+  {
     "id": "url--1779010070853",
     "sourceUrl": "https://www.rednote.com/explore/69e88898000000001a02d944",
     "fetchUrl": "https://www.rednote.com/explore/69e88898000000001a02d944?xsec_token=AB57eA5y5HvR9hju1ciUGtOQpJOxUv-2FjPb4QnFm5SZw=&xsec_source=pc_user&source=web_user_page",

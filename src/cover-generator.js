@@ -2,7 +2,7 @@
 
 const { disabledResult, isAiFeatureEnabled } = require("./ai-config.js");
 
-const COVER_GUIDELINE_VERSION = "kitchenos-cover-v1";
+const COVER_GUIDELINE_VERSION = "kitchenos-cover-v2";
 const DEFAULT_IMAGE_MODEL = "gpt-image-1";
 
 class CoverGenerationError extends Error {
@@ -20,20 +20,16 @@ function buildCoverPrompt(recipe) {
     .map((ingredient) => cleanText(ingredient.name))
     .filter(Boolean)
     .slice(0, 8);
-  const steps = (Array.isArray(recipe.steps) ? recipe.steps : [])
-    .map(cleanText)
-    .filter(Boolean)
-    .slice(0, 5);
   const summary = cleanText(recipe.summary || "");
 
   return [
-    `Create a square editorial food cover image for KitchenOS: ${title}.`,
-    ingredients.length ? `Show the actual dish implied by these ingredients: ${ingredients.join(", ")}.` : "",
-    steps.length ? `Respect this cooking method: ${steps.join(" ")}` : "",
-    summary ? `Context: ${summary}` : "",
-    "Visual direction: overhead or 3/4 food photography, natural daylight, clean home-kitchen plating, appetizing but realistic.",
-    "Brand rules: no text, no logos, no watermark, no packaging, no hands, no utensils as the main subject, no collage.",
-    "Composition: one finished dish centered with visible ingredient cues, warm neutral background, high clarity.",
+    `Editorial watercolor food illustration of ${title}.`,
+    ingredients.length ? `The dish features: ${ingredients.join(", ")}.` : "",
+    summary ? `Dish context: ${summary}` : "",
+    "Style: detailed wet-on-wet watercolor, translucent layered washes, no ink outlines — paint defines all edges. Warm color temperature throughout: golden amber background, creamy whites, rich vivid food colors.",
+    "Composition: main dish large and centered in foreground on a white ceramic plate, one or two smaller complementary dishes receding into the background, creating a warm table-spread depth.",
+    "Lighting: soft diffused overhead light with crisp white specular highlights on the food surface. Hyper-detailed food texture — visible translucency, glossy sauces pooling, fine surface detail.",
+    "No text, no labels, no logos, no watermark, no hands, no utensils as the main subject, no dark harsh shadows, no photography.",
   ]
     .filter(Boolean)
     .join("\n");

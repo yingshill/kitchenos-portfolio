@@ -11,6 +11,7 @@ const RECIPES_PATH = path.join(ROOT, "recipes.json");
 loadEnvFiles(ROOT);
 
 const { extractRecipeFromUrl } = require("../src/recipe-extractor.js");
+const { buildCoverPrompt } = require("../src/cover-generator.js");
 
 async function readRecipes() {
   try {
@@ -102,7 +103,7 @@ async function importUrl(rawUrl, { notes = "", tags = [], forceRefresh = false }
     cover: {
       status: "prompt-ready",
       theme: extraction.coverTheme || "leaf",
-      prompt: `KitchenOS editorial food cover for ${extraction.title}. Clean overhead composition, natural light, no text, no logos, no brand packaging.`,
+      prompt: buildCoverPrompt({ title: extraction.title, ingredients: extraction.ingredients || [], summary: extraction.summary || "" }),
     },
     ingredients: extraction.ingredients || [],
     steps: extraction.steps || [],

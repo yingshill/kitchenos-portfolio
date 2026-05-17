@@ -404,9 +404,24 @@
   }
 
   function createCoverPrompt(recipe) {
-    const ingredients = recipe.ingredients.map((ingredient) => ingredient.name).join(", ");
-    const ingredientPrompt = ingredients ? ` with ${ingredients}` : "";
-    return `KitchenOS editorial food cover for ${recipe.title}${ingredientPrompt}. Clean overhead composition, natural light, no text, no logos, no brand packaging.`;
+    const title = String(recipe.title || "Recipe").replace(/\s+/g, " ").trim();
+    const ingredients = recipe.ingredients
+      .map((i) => String(i.name || "").trim())
+      .filter(Boolean)
+      .slice(0, 8)
+      .join(", ");
+    const summary = String(recipe.summary || "").replace(/\s+/g, " ").trim();
+    return [
+      `Editorial watercolor food illustration of ${title}.`,
+      ingredients ? `The dish features: ${ingredients}.` : "",
+      summary ? `Dish context: ${summary}` : "",
+      "Style: detailed wet-on-wet watercolor, translucent layered washes, no ink outlines — paint defines all edges. Warm color temperature throughout: golden amber background, creamy whites, rich vivid food colors.",
+      "Composition: main dish large and centered in foreground on a white ceramic plate, one or two smaller complementary dishes receding into the background, creating a warm table-spread depth.",
+      "Lighting: soft diffused overhead light with crisp white specular highlights on the food surface. Hyper-detailed food texture — visible translucency, glossy sauces pooling, fine surface detail.",
+      "No text, no labels, no logos, no watermark, no hands, no utensils as the main subject, no dark harsh shadows, no photography.",
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   function getPantryItem(state, name) {
