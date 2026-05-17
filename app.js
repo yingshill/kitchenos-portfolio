@@ -542,7 +542,7 @@ function renderRecipeIngredientRow(ingredient) {
       <span class="bar-track" aria-label="${escapeHtml(percentage)} percent available">
         <span class="bar-fill ${percentage < 50 ? "is-danger" : percentage < 100 ? "is-warn" : ""}" style="width: ${percentage}%"></span>
       </span>
-      <small class="row-meta">${escapeHtml(ingredient.available)} / ${escapeHtml(ingredient.servings)} ${unit}</small>
+      <small class="row-meta">${escapeHtml(ingredient.quantity || ingredient.servings)}</small>
     </div>
   `;
 }

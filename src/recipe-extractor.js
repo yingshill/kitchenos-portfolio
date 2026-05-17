@@ -250,6 +250,7 @@ async function structureTranscriptRecipe(recipe, transcript, options = {}) {
           name: cleanText(ingredient.name),
           category: ingredient.category || categoryForIngredient(ingredient.name),
           servings: Math.max(1, Math.round(Number(ingredient.servings) || 1)),
+          ...(ingredient.quantity ? { quantity: String(ingredient.quantity).trim() } : {}),
           ...(ingredient.emoji ? { emoji: ingredient.emoji } : {}),
         }))
         .filter((ingredient) => ingredient.name),

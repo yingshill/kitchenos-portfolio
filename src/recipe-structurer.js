@@ -32,11 +32,12 @@ const RECIPE_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "category", "servings", "emoji"],
+        required: ["name", "category", "servings", "quantity", "emoji"],
         properties: {
           name: { type: "string" },
           category: { type: "string", enum: ["Produce", "Protein", "Grain", "Dairy", "Pantry"] },
           servings: { type: "number" },
+          quantity: { type: "string" },
           emoji: { type: "string" },
         },
       },
@@ -89,7 +90,7 @@ async function structureRecipeFromTranscript(input, options = {}) {
         {
           role: "system",
           content:
-            "Extract a recipe from cooking video transcript evidence. Use only the transcript and metadata. Do not invent missing steps. Return concise user-facing fields. For each ingredient, assign a single emoji that best represents that specific ingredient. For tags, assign 1–3 that best describe the dish type and cooking method.",
+            "Extract a recipe from cooking video transcript evidence. Use only the transcript and metadata. Do not invent missing steps. Return concise user-facing fields. For each ingredient: assign a single emoji that best represents it; set quantity to the original measurement string (e.g. '250g', '2个', '1 cup'); set servings to the numeric value only. For tags, assign 1–3 that best describe the dish type and cooking method.",
         },
         {
           role: "user",
