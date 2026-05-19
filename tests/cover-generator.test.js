@@ -20,8 +20,8 @@ test("builds a cover prompt from recipe data and brand rules", () => {
 
   assert.equal(prompt.includes("Brown Sugar Steamed Buns"), true);
   assert.equal(prompt.includes("Flour, Brown sugar, Yeast"), true);
-  assert.equal(prompt.includes("Steam until fluffy."), true);
-  assert.equal(prompt.includes("no text, no logos, no watermark"), true);
+  assert.equal(prompt.includes("brown sugar swirl"), true);
+  assert.equal(prompt.includes("No text, no labels, no logos, no watermark"), true);
 });
 
 test("cover generation returns an explicit not-configured state without an API key", async () => {

@@ -211,3 +211,63 @@ Architecture, stack, and design decisions logged at the time they were made. App
 **Options considered:** OpenAI only; Claude API only; provider abstraction with env-based switching.
 **Decision:** `src/chat-provider.js` wraps both APIs behind a single `chat()` function. `CHAT_PROVIDER=claude` (default) routes to the Anthropic Messages API with `claude-opus-4-7`; `CHAT_PROVIDER=openai` routes to OpenAI chat completions. Uses raw `fetch` throughout — consistent with all other API calls in the project, no SDK dependency.
 **Tradeoffs:** Gained: easy A/B testing between providers, prompt caching on the stable system context prefix for Claude, no SDK dependency. Given up: provider-specific features (streaming events, function calling schema differences). The abstraction is a thin one-file shim; if provider differences grow the production version would adopt an SDK per provider.
+
+---
+
+## Cover generation moved to CLI import pipeline — no UI button
+
+**Date:** 2026-05-17
+**Context:** The original design had a "Generate AI cover" button in the recipe modal. This put a $0.011/image API call behind a UI action, creating friction and inconsistency (some recipes would have covers, others wouldn't).
+**Options considered:** Keep the UI button; auto-generate on every import in the CLI; generate on first view server-side.
+**Decision:** `cli/import.js` calls `generateCover()` after each successful import and writes the `imageDataUrl` directly to `recipes.json`. No UI action needed. The button and its handler were deleted from `app.js`.
+**Tradeoffs:** Gained: every imported recipe has a cover immediately, consistent visual library, no UI noise. Given up: user choice over when to spend the image credit. Acceptable — cover generation is a pipeline concern, not a UI concern.
+
+---
+
+## AI cover style: two named prompt builders, switchable via one line
+
+**Date:** 2026-05-17
+**Context:** Two visual styles were evaluated against reference images: v1 (acrylic marker sketchbook zine) and v2 (editorial watercolor dim sum). Both are portfolio-worthy; the active style needs to be finalized.
+**Options considered:** Delete the losing style; keep both as named functions; move styles to a config file.
+**Decision:** Both styles live in `src/cover-generator.js` as `buildCoverPromptV1` and `buildCoverPromptV2`. A single line at the bottom (`const buildCoverPrompt = buildCoverPromptV1`) sets the active style. To switch, change one identifier.
+**Tradeoffs:** Gained: easy A/B comparison, both styles preserved for portfolio reference, zero config overhead. Given up: nothing. v1 (acrylic marker) is active; v2 (watercolor) is kept for potential finalization.
+
+---
+
+## Per-ingredient AI enrichment: emoji, quantity, tags in one extraction call
+
+**Date:** 2026-05-17
+**Context:** The original schema stored only `name`, `category`, and `servings` per ingredient. Display showed generic category emoji (🥬 for all Produce) and raw numbers (100) with no unit.
+**Options considered:** Hardcode emoji map; add separate API calls per ingredient; add fields to the existing extraction schema so GPT fills them in the same call.
+**Decision:** Added `emoji`, `quantity` (original text, e.g. "250g", "2个"), and recipe-level `tags` to `RECIPE_SCHEMA` in `src/recipe-structurer.js`. GPT fills all three in the same structuring call at zero extra API cost. For HTML-only extractions, `src/recipe-enricher.js` makes one fallback call to assign all missing fields.
+**Tradeoffs:** Gained: accurate per-ingredient emoji, original quantity strings, searchable dish-type tags — all from one call. Given up: nothing meaningful. The enricher fallback adds one extra call only when the structurer didn't run.
+
+---
+
+## Auto re-structure low-quality extractions in finalizeExtraction
+
+**Date:** 2026-05-17
+**Context:** Rednote text posts sometimes returned only 1–2 ingredients and 0–1 steps because the full recipe was a text blob in the description, not a structured schema. Users had to manually trigger re-parsing.
+**Options considered:** Show a warning and ask user to retry; re-run structuring only when explicitly requested; detect low-quality output automatically and re-structure.
+**Decision:** `finalizeExtraction` in `src/recipe-extractor.js` checks if extraction yielded ≤2 ingredients or ≤1 step and the step text looks like a measurement blob (length > 80, contains digits). If so, `structureRecipeFromTranscript` runs automatically on the step text before enrichment. No user action needed.
+**Tradeoffs:** Gained: first-import quality parity between well-structured and blob-format posts, eliminates manual re-parse scripts. Given up: one extra API call when low quality is detected (~$0.001). The heuristic (length + digit check) is simple and tunable.
+
+---
+
+## Notion as single source of truth — replacing recipes.json
+
+**Date:** 2026-05-18
+**Context:** `recipes.json` is a local file managed entirely by the CLI. As the recipe library grows and content comes from multiple sources (Xiachufang text + Rednote video), curation becomes manual and fragile. A structured database with human-editable rows is needed.
+**Options considered:** SQLite locally; Airtable; Notion; continue with recipes.json.
+**Decision:** Notion DB becomes the source of truth. Each row = one recipe, with two URL fields: `Primary URL` (Xiachufang — text extraction) and `Video URL` (Rednote — video download + transcription). KitchenOS syncs from Notion via the Notion API. The human's only curation job is adding URLs and connecting related content in Notion; all extraction, enrichment, and cover generation remain automated.
+**Tradeoffs:** Gained: familiar curation UI, multi-source recipe entries, accessible from anywhere, sharable. Given up: fully offline operation, zero-dependency data store. Notion API rate limits and availability are now in the critical path — a local cache (`recipes.json` synced from Notion) mitigates this.
+
+---
+
+## Xiachufang as primary text recipe source; Rednote as supplementary video
+
+**Date:** 2026-05-18
+**Context:** Rednote is where recipes are discovered but extraction fails ~60% of the time (video-only posts). A text-first dedicated recipe site is needed as the reliable extraction target.
+**Options considered:** Rednote only (accept high failure rate); scrape multiple social platforms; use a dedicated recipe site as primary; use a different video platform with better captions.
+**Decision:** 下厨房 (Xiachufang) is the primary text source — structured recipes, always has ingredients and steps, JSON-LD schema. Rednote is supplementary — saved for video context, linked to the same Notion row as the Xiachufang entry. Extraction runs on Xiachufang URL first; Rednote video is downloaded and transcribed to fill any gaps.
+**Tradeoffs:** Gained: near-100% extraction success rate for the primary source, clean ingredient/step data. Given up: pure Rednote workflow (requires the user to find the same recipe on Xiachufang). The human curation step (linking both URLs in Notion) is the accepted trade-off for data quality.
