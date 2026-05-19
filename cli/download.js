@@ -20,6 +20,7 @@ const { rewriteRecipeTitle } = require("../src/title-rewriter.js");
 const { rewriteRecipeSummary } = require("../src/summary-rewriter.js");
 const { enrichRecipeMeta } = require("../src/recipe-enricher.js");
 const { buildCoverPrompt, generateCover } = require("../src/cover-generator.js");
+const { parseQueueYaml, parseTxtList, parseCsvUrls } = require("./parse-queue.js");
 
 async function readRecipes() {
   try { return JSON.parse(await fs.readFile(RECIPES_PATH, "utf-8")); }
@@ -198,29 +199,80 @@ async function downloadAndImport(rawUrl, { cookiesPath } = {}) {
   }
 }
 
+async function runQueue(entries, { cookiesPath }) {
+  const total = entries.length;
+  let done = 0;
+  let failed = 0;
+
+  for (const entry of entries) {
+    done++;
+    console.log(`\n[${done}/${total}] ${entry.name || entry.url}`);
+    try {
+      await downloadAndImport(entry.url, { cookiesPath });
+    } catch (e) {
+      console.error(`  ✗ Failed: ${e.message}`);
+      failed++;
+    }
+  }
+
+  console.log(`\nDone. ${done - failed}/${total} succeeded${failed ? `, ${failed} failed` : ""}.`);
+}
+
+async function loadEntries(filePath, { statusFilter } = {}) {
+  let text;
+  try {
+    text = await fs.readFile(filePath, "utf-8");
+  } catch {
+    throw new Error(`Cannot read file: ${filePath}`);
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".yaml" || ext === ".yml") return parseQueueYaml(text);
+  if (ext === ".txt") return parseTxtList(text);
+  if (ext === ".csv") return parseCsvUrls(text, { statusFilter });
+  throw new Error(`Unsupported file type: ${ext}. Use .yaml, .txt, or .csv`);
+}
+
 async function main() {
   const args = process.argv.slice(2);
-  const url = args.find((a) => !a.startsWith("--"));
+  const positional = args.find((a) => !a.startsWith("--"));
   const cookiesIdx = args.indexOf("--cookies");
   const cookiesPath = cookiesIdx !== -1 ? args[cookiesIdx + 1] : null;
+  const statusIdx = args.indexOf("--status");
+  const statusFilter = statusIdx !== -1 ? args[statusIdx + 1] : null;
 
-  if (!url) {
-    console.log("Usage: node cli/download.js <url> [--cookies <cookies.txt>]");
+  if (!positional) {
+    console.log("Usage: node cli/download.js <url|file> [--cookies <cookies.txt>] [--status <value>]");
     console.log("");
-    console.log("  <url>              Rednote (or any yt-dlp supported) video URL");
+    console.log("  <url>              Single Rednote (or any yt-dlp supported) video URL");
+    console.log("  <file.yaml>        YAML queue — same format as import.js");
+    console.log("  <file.txt>         One URL per line (# for comments)");
+    console.log("  <file.csv>         CSV with a 'Video URL' column");
     console.log("  --cookies <file>   Netscape cookies.txt from your logged-in browser");
+    console.log("  --status <value>   CSV only: filter rows by Status column value");
     console.log("");
     console.log("Requires: yt-dlp (brew install yt-dlp)");
-    console.log("");
-    console.log("Pipeline: yt-dlp metadata → yt-dlp audio → Whisper STT → GPT structure → enrich → cover");
+    console.log("Pipeline: yt-dlp metadata → audio → Whisper STT → GPT structure → enrich → cover");
     process.exit(0);
   }
 
   const version = await checkYtDlp();
   console.log(`yt-dlp ${version}`);
-  console.log(`Downloading: ${url}`);
-  await downloadAndImport(url, { cookiesPath });
-  console.log("Done.");
+
+  const isFile = positional.includes(".") && !positional.startsWith("http");
+  if (isFile) {
+    const entries = await loadEntries(positional, { statusFilter });
+    if (!entries.length) {
+      console.log("No valid URLs found in file.");
+      return;
+    }
+    console.log(`Processing ${entries.length} URL${entries.length === 1 ? "" : "s"} from ${path.basename(positional)}...`);
+    await runQueue(entries, { cookiesPath });
+  } else {
+    console.log(`Downloading: ${positional}`);
+    await downloadAndImport(positional, { cookiesPath });
+    console.log("Done.");
+  }
 }
 
 main().catch((e) => {

@@ -12,6 +12,7 @@ loadEnvFiles(ROOT);
 
 const { extractRecipeFromUrl } = require("../src/recipe-extractor.js");
 const { buildCoverPrompt, generateCover, COVER_GUIDELINE_VERSION } = require("../src/cover-generator.js");
+const { parseQueueYaml } = require("./parse-queue.js");
 
 async function readRecipes() {
   try {
@@ -148,71 +149,6 @@ async function importUrl(rawUrl, { notes = "", tags = [], forceRefresh = false }
       console.log(`  ✗ Cover failed: ${e.message}`);
     }
   }
-}
-
-// Minimal YAML parser for the queue format — no external dep required
-function parseQueueYaml(text) {
-  const entries = [];
-  const lines = text.split("\n");
-  let current = null;
-  let inNotes = false;
-  let notesIndent = 0;
-
-  for (const line of lines) {
-    if (line.trimStart().startsWith("#")) continue;
-
-    const urlMatch = line.match(/^[ \t]*-\s+url:\s*(.+)/);
-    if (urlMatch) {
-      if (current) entries.push(current);
-      current = { url: urlMatch[1].trim(), notes: "", tags: [] };
-      inNotes = false;
-      continue;
-    }
-
-    if (!current) continue;
-
-    const notesBlockMatch = line.match(/^([ \t]*)notes:\s*\|\s*$/);
-    if (notesBlockMatch) {
-      inNotes = true;
-      notesIndent = notesBlockMatch[1].length + 2;
-      continue;
-    }
-
-    const notesInlineMatch = line.match(/^[ \t]*notes:\s*(.+)/);
-    if (notesInlineMatch) {
-      current.notes = notesInlineMatch[1].trim().replace(/^['"]|['"]$/g, "");
-      inNotes = false;
-      continue;
-    }
-
-    if (line.match(/^[ \t]*tags:/)) {
-      inNotes = false;
-      continue;
-    }
-
-    // List item — could be a tag or notes continuation
-    const listItemMatch = line.match(/^([ \t]*)-\s+(.+)/);
-    if (listItemMatch && !inNotes) {
-      const indent = listItemMatch[1].length;
-      // Tags are typically indented 6+ chars (under "    tags:")
-      if (indent >= 4) {
-        current.tags.push(listItemMatch[2].trim().replace(/^['"]|['"]$/g, ""));
-      }
-      continue;
-    }
-
-    if (inNotes) {
-      const indent = (line.match(/^([ \t]*)/)?.[1] || "").length;
-      if (line.trim() === "" || indent >= notesIndent) {
-        current.notes += (current.notes ? "\n" : "") + line.slice(notesIndent);
-      } else {
-        inNotes = false;
-      }
-    }
-  }
-
-  if (current) entries.push(current);
-  return entries.filter((e) => e.url);
 }
 
 async function importQueue(filePath) {
