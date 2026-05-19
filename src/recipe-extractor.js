@@ -3,6 +3,7 @@
 const { extractTranscriptFromMedia } = require("./transcript-extractor.js");
 const { structureRecipeFromTranscript } = require("./recipe-structurer.js");
 const { rewriteRecipeSummary } = require("./summary-rewriter.js");
+const { rewriteRecipeTitle } = require("./title-rewriter.js");
 const { enrichRecipeMeta } = require("./recipe-enricher.js");
 
 const TRACKING_PARAMS = new Set([
@@ -186,12 +187,16 @@ async function finalizeExtraction(recipe, fetchUrl, options) {
   }
 
   if (recipe.ingredients?.length) {
-    const [rewrite] = await Promise.all([
+    const [titleRewrite, summaryRewrite] = await Promise.all([
+      rewriteRecipeTitle(recipe, options).catch(() => null),
       rewriteRecipeSummary(recipe, options).catch(() => null),
       enrichRecipeMeta(recipe, options).catch(() => null),
     ]);
-    if (rewrite?.status === "complete" && rewrite.summary) {
-      recipe.summary = rewrite.summary;
+    if (titleRewrite?.status === "complete" && titleRewrite.title) {
+      recipe.title = titleRewrite.title;
+    }
+    if (summaryRewrite?.status === "complete" && summaryRewrite.summary) {
+      recipe.summary = summaryRewrite.summary;
     }
   }
   return recipe;
