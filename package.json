@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server.js",
     "cli": "node cli/import.js",
-    "check": "node --check src/kitchen-model.js && node --check src/recipe-extractor.js && node --check src/recipe-structurer.js && node --check src/cover-generator.js && node --check src/transcript-extractor.js && node --check src/env-loader.js && node --check src/ai-config.js && node --check src/chat-provider.js && node --check src/summary-rewriter.js && node --check src/title-rewriter.js && node --check src/recipe-enricher.js && node --check cli/import.js && node --check app.js && node --check server.js && node --test",
+    "check": "node --check src/kitchen-model.js && node --check src/recipe-extractor.js && node --check src/recipe-structurer.js && node --check src/cover-generator.js && node --check src/transcript-extractor.js && node --check src/env-loader.js && node --check src/ai-config.js && node --check src/chat-provider.js && node --check src/summary-rewriter.js && node --check src/title-rewriter.js && node --check src/recipe-enricher.js && node --check cli/import.js && node --check cli/download.js && node --check app.js && node --check server.js && node --test",
     "test": "node --test"
   }
 }

@@ -1,5 +1,7 @@
 "use strict";
 
+const fs = require("node:fs/promises");
+const path = require("node:path");
 const { disabledResult, isAiFeatureEnabled } = require("./ai-config.js");
 
 const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
@@ -99,6 +101,50 @@ async function extractTranscriptFromMedia(mediaUrl, options = {}) {
   };
 }
 
+async function transcribeLocalFile(filePath, options = {}) {
+  const apiKey = Object.hasOwn(options, "apiKey") ? options.apiKey : process.env.OPENAI_API_KEY;
+  const model = options.model || process.env.OPENAI_TRANSCRIPTION_MODEL || DEFAULT_TRANSCRIPTION_MODEL;
+
+  if (!apiKey) {
+    return { status: "not-configured", model, message: "Set OPENAI_API_KEY to transcribe audio." };
+  }
+
+  const buffer = await fs.readFile(filePath);
+  if (buffer.byteLength > MAX_TRANSCRIPTION_BYTES) {
+    throw new TranscriptExtractionError("Audio file is too large for transcription (max 25 MB).", {
+      status: 413,
+      code: "MEDIA_TOO_LARGE",
+    });
+  }
+
+  const ext = path.extname(filePath).slice(1).toLowerCase() || "mp3";
+  const contentTypeMap = { m4a: "audio/m4a", webm: "audio/webm", ogg: "audio/ogg", opus: "audio/opus" };
+  const contentType = contentTypeMap[ext] || "audio/mpeg";
+
+  const form = new FormData();
+  form.append("model", model);
+  form.append("response_format", "json");
+  form.append("file", new Blob([buffer], { type: contentType }), `audio.${ext}`);
+
+  const fetchImpl = options.fetch || fetch;
+  const transcriptResponse = await fetchImpl("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+
+  const payload = await transcriptResponse.json().catch(() => ({}));
+  if (!transcriptResponse.ok) {
+    throw new TranscriptExtractionError(payload.error?.message || "Transcription failed.", {
+      status: transcriptResponse.status,
+      code: payload.error?.code || "OPENAI_TRANSCRIPTION_ERROR",
+    });
+  }
+
+  const text = String(payload.text || "").trim();
+  return { status: text ? "complete" : "empty", model, text };
+}
+
 function filenameForContentType(contentType) {
   if (/webm/i.test(contentType)) return "recipe-video.webm";
   if (/mpeg|mp3/i.test(contentType)) return "recipe-audio.mp3";
@@ -110,4 +156,5 @@ module.exports = {
   DEFAULT_TRANSCRIPTION_MODEL,
   TranscriptExtractionError,
   extractTranscriptFromMedia,
+  transcribeLocalFile,
 };
