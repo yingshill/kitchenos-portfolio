@@ -44,10 +44,22 @@ async function checkYtDlp() {
   }
 }
 
+// yt-dlp has a native XiaoHongShu extractor but only recognises xiaohongshu.com.
+// rednote.com is the same platform — post IDs are identical — so translate before passing to yt-dlp.
+function toXhsUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("rednote.com")) u.hostname = u.hostname.replace("rednote.com", "xiaohongshu.com");
+    return u.href;
+  } catch {
+    return url;
+  }
+}
+
 function buildYtDlpArgs(url, cookiesPath, extra = []) {
   const args = [];
   if (cookiesPath) args.push("--cookies", cookiesPath);
-  args.push("--no-playlist", "--no-warnings", "-o", "%(id)s.%(ext)s", ...extra, url);
+  args.push("--no-playlist", "--no-warnings", "-o", "%(id)s.%(ext)s", ...extra, toXhsUrl(url));
   return args;
 }
 
